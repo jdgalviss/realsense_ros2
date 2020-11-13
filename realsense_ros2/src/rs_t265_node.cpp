@@ -19,7 +19,6 @@ class T265Node : public rclcpp::Node
     : Node("t265_node"), tf_broadcaster_(this), count_(0)
     {
       // Enable and start stream from t265 camera
-      // Add pose stream
       cfg_.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
       // Start pipeline with chosen configuration
       pipe_.start(cfg_);

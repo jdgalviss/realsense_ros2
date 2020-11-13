@@ -21,12 +21,16 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(tf2_msgs REQUIRED)
 find_package(realsense2 REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(glfw3 REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(image_transport REQUIRED)
 
-
+find_package(Boost COMPONENTS system REQUIRED)
+find_package(PCL COMPONENTS common REQUIRED)
 
 find_library(realsense2_LIBRARIES realsense2)
 find_path(realsense2_INCLUDE_DIRS librealsense2/rs.hpp)
@@ -64,15 +68,30 @@ install(TARGETS rs_t265_node
   DESTINATION lib/${PROJECT_NAME})
 
 ## rs_d435_node
-add_executable(rs_d435_node src/rs_d435_node.cpp)
+add_executable(rs_d435_node 
+  include/${PROJECT_NAME}/constants.hpp
+  src/rs_d435_node.cpp)
+
 ament_target_dependencies(rs_d435_node
   "rclcpp"
   "geometry_msgs"
   "nav_msgs"
   "realsense2" 
-  "glfw3" 
+  "sensor_msgs" 
+  "pcl_conversions"
+  "cv_bridge"
+  "image_transport"
 
 )
+
+target_link_libraries(rs_d435_node
+  ${Boost_SYSTEM_LIBRARY}  # pcl_conversions requires this
+  ${OpenCV_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${SDL2_LIBRARIES}
+
+)
+
 target_include_directories(rs_d435_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
