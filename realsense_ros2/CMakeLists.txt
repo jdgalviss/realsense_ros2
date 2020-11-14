@@ -40,11 +40,11 @@ include_directories(
   ${realsense2_INCLUDE_DIRS}
 )
 
-## Install launch files.
-#install(DIRECTORY
-#  launch
-#  DESTINATION share/${PROJECT_NAME}/
-#)
+# Install launch files.
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}/
+)
 
 # uncomment the following section in order to fill in
 # further dependencies manually.
