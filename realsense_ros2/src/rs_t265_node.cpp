@@ -40,7 +40,7 @@ class T265Node : public rclcpp::Node
 
       // Timer used to publish camera's odometry periodically
       timer_ = this->create_wall_timer(
-      10ms, std::bind(&T265Node::TimerCallback, this));
+      100ms, std::bind(&T265Node::TimerCallback, this));
     }
 
   private:

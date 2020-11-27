@@ -19,7 +19,7 @@
 #include <sensor_msgs/image_encodings.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <image_transport/image_transport.hpp>
+#include <image_transport/image_transport.h>
 #include <librealsense2/rs.hpp>
 #include <librealsense2/rsutil.h>
 #include <librealsense2/hpp/rs_processing.hpp>
@@ -77,7 +77,7 @@ public:
     pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 10);
 
     // Timer
-    timer_ = this->create_wall_timer(10ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(1000ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
