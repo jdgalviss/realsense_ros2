@@ -10,11 +10,16 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='realsense_ros2',
-            node_executable='rs_t265_node',
-            node_name='rs_t265'
+            executable='rs_t265_node',
+            name='rs_t265'
         ),
         Node(
             package='realsense_ros2',
-            node_executable='rs_d435_node',
-            node_name='rs_d435'),
+            executable='rs_d435_node',
+            name='rs_d435',
+            parameters=[
+                {"is_color": False},
+                {"publish_depth": False}
+            ]
+        )
     ])

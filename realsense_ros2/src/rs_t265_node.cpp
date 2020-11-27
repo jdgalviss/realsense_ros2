@@ -1,3 +1,16 @@
+/*
+* ROS wrapper for Realsense t265 camera
+* By: Juan Galvis
+* https://github.com/jdgalviss
+*
+* This code is free software: you can redistribute it and/or modify
+* it under the terms of the MIT License.
+*
+* This code is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*/
+
 #include <cstdio>
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
@@ -8,7 +21,6 @@
 #include <chrono>
 #include <tf2_ros/transform_broadcaster.h>
 
-
 using namespace std::chrono_literals;
 
 /*! T265 Node class */
@@ -16,19 +28,17 @@ class T265Node : public rclcpp::Node
 {
   public:
     T265Node()
-    : Node("t265_node"), tf_broadcaster_(this), count_(0)
+    : Node("t265_node"), tf_broadcaster_(this)
     {
-      // Enable and start stream from t265 camera
+      // Define configuration to start stream from t265 camera
       cfg_.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
       // Start pipeline with chosen configuration
       pipe_.start(cfg_);
 
       // Publishers
       odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("rs_t265/odom", 10);
-      // const rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default; //used in ros dashing
-      // tf_qos_profile.depth = 100; // used in ros dashing
-      // tf_publisher_ = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", tf_qos_profile); // used in ros dashing
 
+      // Timer used to publish camera's odometry periodically
       timer_ = this->create_wall_timer(
       100ms, std::bind(&T265Node::TimerCallback, this));
     }
@@ -91,12 +101,10 @@ class T265Node : public rclcpp::Node
     rs2::pipeline pipe_;
     // Create a configuration for configuring the pipeline with a non default profile
     rs2::config cfg_;
-    size_t count_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
     // rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr tf_publisher_; // ROS dashing
     tf2_ros::TransformBroadcaster tf_broadcaster_;
-
 };
 
 int main(int argc, char ** argv)

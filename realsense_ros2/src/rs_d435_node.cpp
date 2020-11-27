@@ -1,3 +1,16 @@
+/*
+* ROS wrapper for Realsense d435 camera
+* By: Juan Galvis
+* https://github.com/jdgalviss
+*
+* This code is free software: you can redistribute it and/or modify
+* it under the terms of the MIT License.
+*
+* This code is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+*/
+
 #include <cstdio>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -21,9 +34,6 @@
 #define DEPTH_HEIGHT 480
 #define DEPTH_FPS 6
 
-#define IS_COLOR true
-#define PUBLISH_DEPTH_IMAGE true
-
 using namespace std::chrono_literals;
 using stream_index_pair = std::pair<rs2_stream, int>;
 
@@ -40,13 +50,25 @@ class D435Node : public rclcpp::Node
 {
 public:
   D435Node()
-      : Node("d435_node"), count_(0)
+      : Node("d435_node")
   {
+    // Check execution parameters
+    this->declare_parameter<bool>("is_color", true);
+    this->declare_parameter<bool>("publish_depth", true);
+
+    this->get_parameter("is_color", is_color_);
+    this->get_parameter("publish_depth", publish_depth_);
+
+    if(is_color_)
+      RCLCPP_INFO(logger_, "Holaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=====");
+
+
+    // Setup Device and Stream
     SetUpDevice();
     SetupStream();
-    // Start streaming with default recommended configuration
-    //Add desired streams to configuration
-    if (IS_COLOR)
+
+    // Start pipeline with chosen configuration
+    if (is_color_)
       pipe_.start();
     else
     {
@@ -60,6 +82,8 @@ public:
     align_depth_publisher_ = image_transport::create_publisher(this, "aligned_depth_to_color/image_raw");
     align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("aligned_depth_to_color/camera_info", 1);
     pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 10);
+
+    // Timer
     timer_ = this->create_wall_timer(200ms, std::bind(&D435Node::TimerCallback, this));
   }
 
@@ -106,9 +130,7 @@ private:
 
     // Types for color stream
     rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
-    int image_format = CV_8UC3;                                // CVBridge type
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
-    int unit_step_size = 3;                                    // sensor_msgs::ImagePtr row step size
     std::string stream_name = "color";
 
     std::string module_name = "0";
@@ -133,7 +155,7 @@ private:
         {
           auto video_profile = profile.as<rs2::video_stream_profile>();
 
-          RCLCPP_INFO(logger_, "Video profile found with  W: %d, H: %d, FPS: %d ", video_profile.width(),
+          RCLCPP_DEBUG(logger_, "Video profile found with  W: %d, H: %d, FPS: %d ", video_profile.width(),
                       video_profile.height(), video_profile.fps());
 
           // Choose right profile depending on parameters
@@ -240,7 +262,7 @@ private:
     rs2::depth_frame aligned_depth = aligned_frameset_.get_depth_frame();
     auto image_depth16 = reinterpret_cast<const uint16_t *>(aligned_depth.get_data());
     auto depth_intrinsics = stream_intrinsics_;
-    if (IS_COLOR)
+    if (is_color_)
     {
       auto color_vf = aligned_frameset_.get_color_frame();
       image_ = cv::Mat(cv::Size(color_vf.get_width(), color_vf.get_height()), IMAGE_FORMAT_DEPTH,
@@ -295,7 +317,7 @@ private:
           *(iter_x + iter_offset) = depth_point[0];
           *(iter_y + iter_offset) = depth_point[1];
           *(iter_z + iter_offset) = depth_point[2];
-          if (IS_COLOR)
+          if (is_color_)
           {
             *(iter_r + iter_offset) = color_data[iter_offset * 3];
             *(iter_g + iter_offset) = color_data[iter_offset * 3 + 1];
@@ -316,7 +338,7 @@ private:
     // rs2::depth_frame depth_frame = frames.get_depth_frame();
     rs2::align align(RS2_STREAM_COLOR);
     aligned_frameset_ = frames.apply_filter(align);
-    if (PUBLISH_DEPTH_IMAGE)
+    if (publish_depth_)
       PublishAlignedDepthImg();
     publishAlignedPCTopic();
   }
@@ -341,8 +363,8 @@ private:
   cv::Mat image_;
 
   float depth_scale_meters_ = 1;
-
-  size_t count_;
+  bool is_color_ = true;
+  bool publish_depth_ = true;
 };
 
 int main(int argc, char **argv)
