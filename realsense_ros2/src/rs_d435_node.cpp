@@ -39,29 +39,22 @@ using stream_index_pair = std::pair<rs2_stream, int>;
 
 const stream_index_pair COLOR{RS2_STREAM_COLOR, 0};
 const stream_index_pair DEPTH{RS2_STREAM_DEPTH, 0};
-const stream_index_pair INFRA1{RS2_STREAM_INFRARED, 1};
-const stream_index_pair INFRA2{RS2_STREAM_INFRARED, 2};
-// const stream_index_pair FISHEYE{RS2_STREAM_FISHEYE, 0};
-// const stream_index_pair GYRO{RS2_STREAM_GYRO, 0};
-// const stream_index_pair ACCEL{RS2_STREAM_ACCEL, 0};
 
-/*! dD35 Node class */
+
+/*! D435 Node class */
 class D435Node : public rclcpp::Node
 {
 public:
   D435Node()
       : Node("d435_node")
   {
-    // Check execution parameters
+    // Get execution parameters
     this->declare_parameter<bool>("is_color", true);
     this->declare_parameter<bool>("publish_depth", true);
-
+    this->declare_parameter<int>("fps", 6);  // can only take the values of 
     this->get_parameter("is_color", is_color_);
     this->get_parameter("publish_depth", publish_depth_);
-
-    if(is_color_)
-      RCLCPP_INFO(logger_, "Holaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa=====");
-
+    this->get_parameter("fps", fps_);
 
     // Setup Device and Stream
     SetUpDevice();
@@ -84,7 +77,7 @@ public:
     pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 10);
 
     // Timer
-    timer_ = this->create_wall_timer(200ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(10ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
@@ -92,7 +85,9 @@ private:
   {
     try
     {
+      // Reset context
       ctx_.reset(new rs2::context());
+      // query realsense devices
       auto list = ctx_->query_devices();
       if (0 == list.size())
       {
@@ -101,9 +96,7 @@ private:
         rclcpp::shutdown();
         exit(1);
       }
-
-      // Take the first device in the list.
-      // Add an ability to get the specific device to work with from outside.
+      // Front device corresponds to depth camera
       dev_ = list.front();
       RCLCPP_INFO(logger_, "Device set up");
     }
@@ -121,18 +114,10 @@ private:
 
   void SetupStream()
   {
-    // //Types for depth stream
-    // rs2_format format = RS2_FORMAT_Z16;           // libRS type
-    // int image_format = CV_16UC1;            // CVBridge type
-    // std::string encoding = sensor_msgs::image_encodings::TYPE_16UC1;         // ROS message type
-    // int unit_step_size = sizeof(uint16_t);         // sensor_msgs::ImagePtr row step size
-    // std::string stream_name = "depth";
-
-    // Types for color stream
+    // Parameters of the video profile we want
     rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
     std::string stream_name = "color";
-
     std::string module_name = "0";
 
     auto dev_sensors = dev_.query_sensors();
@@ -144,26 +129,27 @@ private:
         RCLCPP_INFO(logger_, "\n\nModule name: %s", module_name.c_str());
         auto sen = new rs2::sensor(elem);
         auto sens = std::unique_ptr<rs2::sensor>(sen);
-
+        // From the Stereo module, get the depth scale parameter (extrinsic)
         if ("Stereo Module" == module_name || "Coded-Light Depth Sensor" == module_name)
         {
           auto depth_sensor = sens->as<rs2::depth_sensor>();
           depth_scale_meters_ = depth_sensor.get_depth_scale();
         }
+
+        // Get the video profiles
         auto profiles = sens->get_stream_profiles();
         for (auto &profile : profiles)
         {
           auto video_profile = profile.as<rs2::video_stream_profile>();
-
           RCLCPP_DEBUG(logger_, "Video profile found with  W: %d, H: %d, FPS: %d ", video_profile.width(),
                       video_profile.height(), video_profile.fps());
-
           // Choose right profile depending on parameters
           if (video_profile.format() == format &&
               video_profile.width() == DEPTH_WIDTH &&
               video_profile.height() == DEPTH_HEIGHT &&
-              video_profile.fps() == DEPTH_FPS)
+              video_profile.fps() == fps_)
           {
+            // Update calibration data with information from video profile
             UpdateCalibData(video_profile);
             auto video_profile_ = video_profile;
             image_ =
@@ -189,7 +175,7 @@ private:
 
   void UpdateCalibData(const rs2::video_stream_profile &video_profile)
   {
-    stream_index_pair stream_index{video_profile.stream_type(), video_profile.stream_index()};
+    // Get profile intrinsics and save in camera_info msg
     auto intrinsic = video_profile.get_intrinsics();
     stream_intrinsics_ = intrinsic;
     camera_info_.width = intrinsic.width;
@@ -215,6 +201,8 @@ private:
     camera_info_.p.at(10) = 1;
     camera_info_.p.at(11) = 0;
 
+    // If video profile corresponds to Depth, save extrinsics as well
+    stream_index_pair stream_index{video_profile.stream_type(), video_profile.stream_index()};
     if (stream_index == DEPTH)
     {
       rs2::stream_profile depth_profile;
@@ -230,14 +218,13 @@ private:
   void PublishAlignedDepthImg()
   {
     // Get Depth frame
-    // aligned_frameset_ = depth_frame.apply_filter(align);
     rs2::depth_frame aligned_depth = aligned_frameset_.get_depth_frame();
 
     // Transform to video frame
     auto vf = aligned_depth.as<rs2::video_frame>();
     auto depth_image = cv::Mat(cv::Size(vf.get_width(), vf.get_height()), IMAGE_FORMAT_DEPTH, const_cast<void *>(vf.get_data()), cv::Mat::AUTO_STEP);
 
-    // Transform to ROS msg
+    // Transform to ROS msg and publish
     sensor_msgs::msg::Image::SharedPtr img;
     auto info_msg = camera_info_;
     img = cv_bridge::CvImage(
@@ -255,20 +242,24 @@ private:
     img->header.frame_id = "camera_link_d435";
     img->header.stamp = rclcpp::Clock().now();
     align_depth_publisher_.publish(img);
+    align_depth_camera_info_publisher_->publish(camera_info_);
   }
 
   void publishAlignedPCTopic()
   {
+    // Get Depth Frame
     rs2::depth_frame aligned_depth = aligned_frameset_.get_depth_frame();
     auto image_depth16 = reinterpret_cast<const uint16_t *>(aligned_depth.get_data());
     auto depth_intrinsics = stream_intrinsics_;
     if (is_color_)
     {
+      // If color is enabled, obtain color image to align it with pointcloud
       auto color_vf = aligned_frameset_.get_color_frame();
       image_ = cv::Mat(cv::Size(color_vf.get_width(), color_vf.get_height()), IMAGE_FORMAT_DEPTH,
                        const_cast<void *>(color_vf.get_data()), cv::Mat::AUTO_STEP);
     }
     unsigned char *color_data = image_.data;
+    // Create pointcloud msg
     sensor_msgs::msg::PointCloud2 msg_pointcloud;
     msg_pointcloud.header.stamp = rclcpp::Clock().now();
     msg_pointcloud.header.frame_id = "camera_link_d435";
@@ -334,10 +325,11 @@ private:
 
   void TimerCallback()
   {
+    // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
-    // rs2::depth_frame depth_frame = frames.get_depth_frame();
     rs2::align align(RS2_STREAM_COLOR);
     aligned_frameset_ = frames.apply_filter(align);
+    // If depth image is to be published, publish, otherwise only publish Pointcloud
     if (publish_depth_)
       PublishAlignedDepthImg();
     publishAlignedPCTopic();
@@ -349,22 +341,23 @@ private:
   image_transport::Publisher align_depth_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr align_depth_camera_info_publisher_;
 
-  sensor_msgs::msg::CameraInfo camera_info_;
-
+  // Realsense variables
   rs2::device dev_;
   rs2_intrinsics depth_intrinsincs_;
   rs2_intrinsics stream_intrinsics_;
   rs2_extrinsics depth2color_extrinsics_;
   std::unique_ptr<rs2::context> ctx_;
   rs2::frameset aligned_frameset_;
-
-  // rs2::video_stream_profile video_profile_;
   rs2::pipeline pipe_;
-  cv::Mat image_;
 
+  cv::Mat image_;
   float depth_scale_meters_ = 1;
+  sensor_msgs::msg::CameraInfo camera_info_;
+
+  // Parameters
   bool is_color_ = true;
   bool publish_depth_ = true;
+  int fps_ = 6;
 };
 
 int main(int argc, char **argv)
