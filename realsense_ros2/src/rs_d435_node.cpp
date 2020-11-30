@@ -49,13 +49,14 @@ public:
       : Node("d435_node")
   {
     // Get execution parameters
-    this->declare_parameter<bool>("is_color", true);
-    this->declare_parameter<bool>("publish_depth", true);
+    this->declare_parameter<bool>("is_color", false);
+    this->declare_parameter<bool>("publish_depth", false);
     this->declare_parameter<int>("fps", 6);  // can only take the values of 
     this->get_parameter("is_color", is_color_);
     this->get_parameter("publish_depth", publish_depth_);
     this->get_parameter("fps", fps_);
 
+    begin_ = std::chrono::steady_clock::now();
     // Setup Device and Stream
     SetUpDevice();
     SetupStream();
@@ -74,10 +75,10 @@ public:
     // Publishers
     align_depth_publisher_ = image_transport::create_publisher(this, "aligned_depth_to_color/image_raw");
     align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("aligned_depth_to_color/camera_info", 1);
-    pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 10);
+    pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 1);
 
     // Timer
-    timer_ = this->create_wall_timer(1000ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(200ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
@@ -325,17 +326,26 @@ private:
 
   void TimerCallback()
   {
+    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //RCLCPP_INFO(logger_, "publish pc: %d",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin_).count());
+    //begin_=end;
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
+
     rs2::align align(RS2_STREAM_COLOR);
+
     aligned_frameset_ = frames.apply_filter(align);
+
     // If depth image is to be published, publish, otherwise only publish Pointcloud
     if (publish_depth_)
       PublishAlignedDepthImg();
     publishAlignedPCTopic();
   }
+
   rclcpp::Logger logger_ = rclcpp::get_logger("D435Node");
   rclcpp::TimerBase::SharedPtr timer_;
+  std::chrono::steady_clock::time_point begin_;
+
   // Publishers
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_publisher_;
   image_transport::Publisher align_depth_publisher_;

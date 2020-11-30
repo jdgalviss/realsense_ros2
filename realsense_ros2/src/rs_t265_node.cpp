@@ -20,6 +20,9 @@
 #include <iomanip>
 #include <chrono>
 #include <tf2_ros/transform_broadcaster.h>
+#include <tf2/transform_datatypes.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2/convert.h>
 
 using namespace std::chrono_literals;
 
@@ -30,6 +33,7 @@ class T265Node : public rclcpp::Node
     T265Node()
     : Node("t265_node"), tf_broadcaster_(this)
     {
+//begin_ = std::chrono::steady_clock::now();
       // Define configuration to start stream from t265 camera
       cfg_.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
       // Start pipeline with chosen configuration
@@ -46,14 +50,20 @@ class T265Node : public rclcpp::Node
   private:
     void TimerCallback()
     {
+      //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+      //RCLCPP_INFO(logger_, "t265 timer period: %d",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin_).count());
+      //begin_=end;
+
       // Wait for the next set of frames from the camera
       auto frames = pipe_.wait_for_frames();
+
       // Get a frame from the pose stream
       auto f = frames.first_or_default(RS2_STREAM_POSE);
       // Cast the frame to pose_frame and get its data
       auto pose_data = f.as<rs2::pose_frame>().get_pose_data();
 
       // Create odometry msg and publish
+
       auto odom_msg = nav_msgs::msg::Odometry();
       odom_msg.header.frame_id = "odom";
       odom_msg.child_frame_id = "camera_link_t265";
@@ -79,7 +89,7 @@ class T265Node : public rclcpp::Node
       // Publish tf data
       tf2_msgs::msg::TFMessage tfs;
       geometry_msgs::msg::TransformStamped tf;
-      tf.header.stamp = rclcpp::Clock().now();
+      tf.header.stamp = odom_msg.header.stamp;
       tf.header.frame_id = "odom";
       tf.child_frame_id = "camera_link_t265";
       tf.transform.translation.x = pose_data.translation.x;
@@ -90,13 +100,13 @@ class T265Node : public rclcpp::Node
       tf.transform.rotation.z = pose_data.rotation.y;
       tf.transform.rotation.w = pose_data.rotation.w;
       tf_broadcaster_.sendTransform(tf);
-      // set tf.transform
-      //tfs.transforms.push_back(tf);
 
-      // Publish transform
-      //tf_publisher_->publish(tfs);
     }
     // Class Members
+std::chrono::steady_clock::time_point begin_;
+    rclcpp::Logger logger_ = rclcpp::get_logger("T265Node");
+    geometry_msgs::msg::TransformStamped tf_static_;
+    bool publish_transform_to_depth_;
     // Declare RealSense pipeline, encapsulating the actual device and sensors
     rs2::pipeline pipe_;
     // Create a configuration for configuring the pipeline with a non default profile
