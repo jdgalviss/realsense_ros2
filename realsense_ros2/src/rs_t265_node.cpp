@@ -10,10 +10,10 @@
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 */
-
 #include <cstdio>
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <sensor_msgs/msg/imu.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
 #include <librealsense2/rs.hpp>
 #include <iostream>
@@ -29,41 +29,63 @@ using namespace std::chrono_literals;
 /*! T265 Node class */
 class T265Node : public rclcpp::Node
 {
-  public:
-    T265Node()
-    : Node("t265_node"), tf_broadcaster_(this)
+public:
+  T265Node()
+      : Node("t265_node"), tf_broadcaster_(this)
+  {
+    //begin_ = std::chrono::steady_clock::now();
+    // Define configuration to start stream from t265 camera
+    cfg_.enable_stream(RS2_STREAM_ACCEL);
+    cfg_.enable_stream(RS2_STREAM_GYRO);
+    cfg_.enable_stream(RS2_STREAM_POSE);
+    // Start pipeline with chosen configuration
+    pipe_.start(cfg_);
+
+    // Publishers
+    odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("rs_t265/odom", 10);
+    imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("rs_t265/imu", 10);
+    // Timer used to publish camera's odometry periodically
+    timer_ = this->create_wall_timer(
+        10ms, std::bind(&T265Node::TimerCallback, this));
+  }
+
+private:
+  void TimerCallback()
+  {
+    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //RCLCPP_INFO(logger_, "t265 timer period: %d",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin_).count());
+    //begin_=end;
+
+    // Wait for the next set of frames from the camera
+    auto frameset = pipe_.wait_for_frames();
+
+    // Find and retrieve IMU and/or tracking data
+
+    if (rs2::motion_frame gyro_frame = frameset.first_or_default(RS2_STREAM_GYRO))
     {
-//begin_ = std::chrono::steady_clock::now();
-      // Define configuration to start stream from t265 camera
-      cfg_.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
-      // Start pipeline with chosen configuration
-      pipe_.start(cfg_);
-
-      // Publishers
-      odom_publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("rs_t265/odom", 10);
-
-      // Timer used to publish camera's odometry periodically
-      timer_ = this->create_wall_timer(
-      100ms, std::bind(&T265Node::TimerCallback, this));
+      rs2_vector gyro_sample = gyro_frame.get_motion_data();
+      imu_msg_.angular_velocity.x = gyro_sample.x;
+      imu_msg_.angular_velocity.y = gyro_sample.y;
+      imu_msg_.angular_velocity.z = gyro_sample.z;
     }
 
-  private:
-    void TimerCallback()
+    if (rs2::motion_frame accel_frame = frameset.first_or_default(RS2_STREAM_ACCEL))
     {
-      //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-      //RCLCPP_INFO(logger_, "t265 timer period: %d",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin_).count());
-      //begin_=end;
+      rs2_vector accel_sample = accel_frame.get_motion_data();
+      imu_msg_.header.stamp = rclcpp::Clock().now();
+      imu_msg_.header.frame_id = "camera_link_t265";
+      imu_msg_.linear_acceleration.x = accel_sample.x;
+      imu_msg_.linear_acceleration.y = accel_sample.y;
+      imu_msg_.linear_acceleration.z = accel_sample.z;
+      imu_publisher_->publish(imu_msg_);
+    }
 
-      // Wait for the next set of frames from the camera
-      auto frames = pipe_.wait_for_frames();
+    
 
-      // Get a frame from the pose stream
-      auto f = frames.first_or_default(RS2_STREAM_POSE);
-      // Cast the frame to pose_frame and get its data
-      auto pose_data = f.as<rs2::pose_frame>().get_pose_data();
-
+    if (rs2::pose_frame pose_frame = frameset.first_or_default(RS2_STREAM_POSE))
+    {
+      rs2_pose pose_data = pose_frame.get_pose_data();
       // Create odometry msg and publish
-
       auto odom_msg = nav_msgs::msg::Odometry();
       odom_msg.header.frame_id = "odom";
       odom_msg.child_frame_id = "camera_link_t265";
@@ -100,24 +122,26 @@ class T265Node : public rclcpp::Node
       tf.transform.rotation.z = pose_data.rotation.y;
       tf.transform.rotation.w = pose_data.rotation.w;
       tf_broadcaster_.sendTransform(tf);
-
     }
-    // Class Members
-std::chrono::steady_clock::time_point begin_;
-    rclcpp::Logger logger_ = rclcpp::get_logger("T265Node");
-    geometry_msgs::msg::TransformStamped tf_static_;
-    bool publish_transform_to_depth_;
-    // Declare RealSense pipeline, encapsulating the actual device and sensors
-    rs2::pipeline pipe_;
-    // Create a configuration for configuring the pipeline with a non default profile
-    rs2::config cfg_;
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
-    // rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr tf_publisher_; // ROS dashing
-    tf2_ros::TransformBroadcaster tf_broadcaster_;
+  }
+  // Class Members
+  // std::chrono::steady_clock::time_point begin_;
+  rclcpp::Logger logger_ = rclcpp::get_logger("T265Node");
+  geometry_msgs::msg::TransformStamped tf_static_;
+  sensor_msgs::msg::Imu imu_msg_; 
+  bool publish_transform_to_depth_;
+  // Declare RealSense pipeline, encapsulating the actual device and sensors
+  rs2::pipeline pipe_;
+  // Create a configuration for configuring the pipeline with a non default profile
+  rs2::config cfg_;
+  rclcpp::TimerBase::SharedPtr timer_;
+  // Publishers
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
+  tf2_ros::TransformBroadcaster tf_broadcaster_;
 };
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
   printf("hello world rs_t265 package\n");
   rclcpp::init(argc, argv);

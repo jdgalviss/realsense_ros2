@@ -46,6 +46,11 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}/
 )
 
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -56,6 +61,7 @@ ament_target_dependencies(rs_t265_node
   "rclcpp"
   "geometry_msgs"
   "nav_msgs"
+  "sensor_msgs" 
   "tf2_msgs"
   "tf2_ros"
   "realsense2" 

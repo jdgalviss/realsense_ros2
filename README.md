@@ -73,21 +73,18 @@ In one terminal, launch the two cameras:
 ```bash
 ros2 launch realsense_ros2 realsense_launch.py
 ```
-
-In a second terminal, run the static transform:
-```bash
-ros2 run tf2_ros static_transform_publisher 0.0 0.0 0.0 -1.5708 0.0 -1.5708 camera_link_t265 camera_link_d435
-```
 ![rviz][image2]
 
 ## Published topics
 
 ### rs_t265_node
-* /rs_t265/odom [nav_msgs/Odometry]: Pose and speeds of the t265 tracking camera.
+* rs_t265/odom [nav_msgs/Odometry]: Pose and speeds of the t265 tracking camera.
+* rs_t265/imu [sensor_msgs/Imu]: Imu data.
+* tf
+
 
 ### rs_d435_node
 
-* /point_cloud [sensor_msgs/PointCloud2]: Pointcloud from d435 depth camera.
-
-* /aligned_depth_to_color/image_raw [sensor_msgs/PointCloud2]: Depth Image from d435 depth camera (only published if *publish_depth* parameter is set to true ).
+* rs_t265/point_cloud [sensor_msgs/PointCloud2]: Pointcloud from d435 depth camera.
+* rs_t265/aligned_depth/image_raw [sensor_msgs/Image]: Depth Image from d435 depth camera (only published if *publish_depth* parameter is set to true ).
 

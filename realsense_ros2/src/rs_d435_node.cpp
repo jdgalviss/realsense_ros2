@@ -10,7 +10,6 @@
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
 */
-
 #include <cstdio>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -51,9 +50,11 @@ public:
     // Get execution parameters
     this->declare_parameter<bool>("is_color", false);
     this->declare_parameter<bool>("publish_depth", false);
+    this->declare_parameter<bool>("publish_pointcloud", false);
     this->declare_parameter<int>("fps", 6);  // can only take the values of 
     this->get_parameter("is_color", is_color_);
     this->get_parameter("publish_depth", publish_depth_);
+    this->get_parameter("publish_pointcloud", publish_pointcloud_);
     this->get_parameter("fps", fps_);
 
     begin_ = std::chrono::steady_clock::now();
@@ -73,9 +74,9 @@ public:
     RCLCPP_INFO(logger_, "Capture Pipeline started!");
 
     // Publishers
-    align_depth_publisher_ = image_transport::create_publisher(this, "aligned_depth_to_color/image_raw");
-    align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("aligned_depth_to_color/camera_info", 1);
-    pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", 1);
+    align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
+    align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 1);
+    pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 1);
 
     // Timer
     timer_ = this->create_wall_timer(200ms, std::bind(&D435Node::TimerCallback, this));
@@ -116,6 +117,7 @@ private:
   void SetupStream()
   {
     // Parameters of the video profile we want
+    rs2_format depth_format = RS2_FORMAT_Z16;
     rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
     std::string stream_name = "color";
@@ -142,7 +144,7 @@ private:
         for (auto &profile : profiles)
         {
           auto video_profile = profile.as<rs2::video_stream_profile>();
-          RCLCPP_DEBUG(logger_, "Video profile found with  W: %d, H: %d, FPS: %d ", video_profile.width(),
+          RCLCPP_DEBUG(logger_, "Video profile found with  format: %d, W: %d, H: %d, FPS: %d ",video_profile.format(), video_profile.width(),
                       video_profile.height(), video_profile.fps());
           // Choose right profile depending on parameters
           if (video_profile.format() == format &&
@@ -214,6 +216,23 @@ private:
       camera_info_.p.at(7) = depth2color_extrinsics_.translation[1];  // Ty
       camera_info_.p.at(11) = depth2color_extrinsics_.translation[2]; // Tz
     }
+    camera_info_.distortion_model = "plumb_bob";
+
+    // set R (rotation matrix) values to identity matrix
+    camera_info_.r.at(0) = 1.0;
+    camera_info_.r.at(1) = 0.0;
+    camera_info_.r.at(2) = 0.0;
+    camera_info_.r.at(3) = 0.0;
+    camera_info_.r.at(4) = 1.0;
+    camera_info_.r.at(5) = 0.0;
+    camera_info_.r.at(6) = 0.0;
+    camera_info_.r.at(7) = 0.0;
+    camera_info_.r.at(8) = 1.0;
+
+    for (int i = 0; i < 5; i++) {
+      camera_info_.d.push_back(intrinsic.coeffs[i]);
+    }
+    
   }
 
   void PublishAlignedDepthImg()
@@ -331,15 +350,13 @@ private:
     //begin_=end;
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
-
     rs2::align align(RS2_STREAM_COLOR);
-
     aligned_frameset_ = frames.apply_filter(align);
-
     // If depth image is to be published, publish, otherwise only publish Pointcloud
     if (publish_depth_)
       PublishAlignedDepthImg();
-    publishAlignedPCTopic();
+    if(publish_pointcloud_)
+      publishAlignedPCTopic();
   }
 
   rclcpp::Logger logger_ = rclcpp::get_logger("D435Node");
@@ -367,6 +384,8 @@ private:
   // Parameters
   bool is_color_ = true;
   bool publish_depth_ = true;
+  bool publish_pointcloud_ = true;
+
   int fps_ = 6;
 };
 
