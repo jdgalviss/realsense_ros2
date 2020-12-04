@@ -47,9 +47,9 @@ def generate_launch_description():
             node_name='rs_d435',
             output='screen',
             parameters=[
-                {"is_color": True},
+                {"is_color": False},
                 {"publish_depth": True},
-                {"publish_pointcloud": True},
+                {"publish_pointcloud": False},
                 {"fps": 15}      # Can only take values of 6,15,30 or 60
             ]
         ),
@@ -74,7 +74,7 @@ def generate_launch_description():
             node_executable='depthimage_to_laserscan_node',
             node_name='scan',
             output='screen',
-            parameters=[{'output_frame':'camera_link_d435_scan'}],
+            parameters=[{'output_frame':'camera_link_t265'}],
             remappings=[('depth','rs_d435/aligned_depth/image_raw'),
                         ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
             ),

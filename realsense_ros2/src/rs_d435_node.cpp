@@ -49,9 +49,9 @@ public:
   {
     // Get execution parameters
     this->declare_parameter<bool>("is_color", false);
-    this->declare_parameter<bool>("publish_depth", false);
+    this->declare_parameter<bool>("publish_depth", true);
     this->declare_parameter<bool>("publish_pointcloud", false);
-    this->declare_parameter<int>("fps", 6);  // can only take the values of 
+    this->declare_parameter<int>("fps", 30);  // can only take the values of 
     this->get_parameter("is_color", is_color_);
     this->get_parameter("publish_depth", publish_depth_);
     this->get_parameter("publish_pointcloud", publish_pointcloud_);
@@ -68,18 +68,21 @@ public:
     else
     {
       rs2::config cfg;
-      cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 6);
+      cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, fps_);
       pipe_.start(cfg);
     }
     RCLCPP_INFO(logger_, "Capture Pipeline started!");
 
     // Publishers
-    align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
-    align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 1);
-    pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 1);
+    if (publish_depth_){
+      align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
+      align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 1);
+    }
+    if(publish_pointcloud_)
+      pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 1);
 
     // Timer
-    timer_ = this->create_wall_timer(200ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(50ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
@@ -345,18 +348,31 @@ private:
 
   void TimerCallback()
   {
-    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    //RCLCPP_INFO(logger_, "publish pc: %d",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin_).count());
-    //begin_=end;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
-    rs2::align align(RS2_STREAM_COLOR);
-    aligned_frameset_ = frames.apply_filter(align);
+
+//std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+//    RCLCPP_INFO(logger_, "wait frames: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
+//    begin=end;
+
     // If depth image is to be published, publish, otherwise only publish Pointcloud
+    if(publish_pointcloud_){
+      publishAlignedPCTopic();
+      rs2::align align(RS2_STREAM_COLOR);
+      aligned_frameset_ = frames.apply_filter(align);
+    }
+    else
+      aligned_frameset_ = frames;
+
     if (publish_depth_)
       PublishAlignedDepthImg();
-    if(publish_pointcloud_)
-      publishAlignedPCTopic();
+    
+
+//end = std::chrono::steady_clock::now();
+//    RCLCPP_INFO(logger_, "publish: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
+//    begin=end;
   }
 
   rclcpp::Logger logger_ = rclcpp::get_logger("D435Node");
@@ -386,7 +402,7 @@ private:
   bool publish_depth_ = true;
   bool publish_pointcloud_ = true;
 
-  int fps_ = 6;
+  int fps_ = 30;
 };
 
 int main(int argc, char **argv)
