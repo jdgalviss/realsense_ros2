@@ -2,6 +2,8 @@
 
 [image1]: imgs/rs-viewer.png "rs-viewer"
 [image2]: imgs/rviz.gif "rviz"
+[image3]: imgs/cartographer.png "cartographer"
+
 
 
 # realsense_ros2
@@ -58,7 +60,8 @@ ros2 run realsense_ros2 rs_d435_node --ros-args -p is_color:=true -p publish_dep
 ```
 
 * When the *is_color* parameter is set to true, the color image from the depth camera is aligned with the pointcloud.
-* When the *publish_depth* parameter is set to true, the depth image is published along with the pointcloud data.
+* When the *publish_depth* parameter is set to true, the depth image is published.
+* When the *publish_pointcloud* parameter is set to true, the 3D pointcloud is published.
 * The *fps* parameter is used to modify the rate at which the node publishes the pointcloud and the depth image.
 
 
@@ -74,6 +77,13 @@ In one terminal, launch the two cameras:
 ros2 launch realsense_ros2 realsense_launch.py
 ```
 ![rviz][image2]
+
+### T265 tracking and D435 depth cameras simultaneously with ros cartographer 2D SLAM
+In one terminal, launch the two cameras:
+```bash
+ros2 launch realsense_ros2 slam_cartographer_launch.py
+```
+![cartographer][image3]
 
 ## Published topics
 
