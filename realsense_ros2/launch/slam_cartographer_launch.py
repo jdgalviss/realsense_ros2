@@ -42,18 +42,6 @@ def generate_launch_description():
             output='screen'
         ),
         Node(
-            package='realsense_ros2',
-            node_executable='rs_d435_node',
-            node_name='rs_d435',
-            output='screen',
-            parameters=[
-                {"is_color": False},
-                {"publish_depth": True},
-                {"publish_pointcloud": False},
-                {"fps": 15}      # Can only take values of 6,15,30 or 60
-            ]
-        ),
-        Node(
             ## Configure the TF of the robot to the origin of the map coordinates
             package='tf2_ros',
             node_executable='static_transform_publisher',
@@ -68,7 +56,18 @@ def generate_launch_description():
             output='screen',
             arguments=['0.0', '0.025', '0.03', '0.0', '0.0', '0.0', 'camera_link_t265', 'camera_link_d435_scan']
             ),
-
+        Node(
+            package='realsense_ros2',
+            node_executable='rs_d435_node',
+            node_name='rs_d435',
+            output='screen',
+            parameters=[
+                {"is_color": False},
+                {"publish_depth": True},
+                {"publish_pointcloud": False},
+                {"fps": 15}      # Can only take values of 6,15,30 or 60
+            ]
+        ),
         Node(
             package='depthimage_to_laserscan',
             node_executable='depthimage_to_laserscan_node',
@@ -77,30 +76,5 @@ def generate_launch_description():
             parameters=[{'output_frame':'camera_link_t265'}],
             remappings=[('depth','rs_d435/aligned_depth/image_raw'),
                         ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
-            ),
-
-        Node(
-            package='cartographer_ros',
-            node_executable='cartographer_node',
-            output='log',
-            parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-configuration_directory', cartographer_config_dir, '-configuration_basename', configuration_basename],
-            remappings=[('odom','rs_t265/odom')]),
-
-         DeclareLaunchArgument(
-            'resolution',
-            default_value=resolution,
-            description='Resolution of a grid cell in the published occupancy grid'),
-
-        DeclareLaunchArgument(
-            'publish_period_sec',
-            default_value=publish_period_sec,
-            description='OccupancyGrid publishing period'),
-
-        Node(
-            package='cartographer_ros',
-            node_executable='occupancy_grid_node',
-            node_name='occupancy_grid_node',
-            parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-resolution', resolution, '-publish_period_sec', publish_period_sec]),
+            )
     ])
