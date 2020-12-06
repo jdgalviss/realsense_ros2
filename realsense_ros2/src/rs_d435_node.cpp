@@ -27,6 +27,7 @@
 #include "realsense_ros2/constants.hpp"
 #include <chrono>
 #include <map>
+#include <tf2_ros/transform_listener.h>
 
 #define IMAGE_FORMAT_DEPTH CV_16UC1 // CVBridge type
 #define DEPTH_WIDTH 640
@@ -45,13 +46,13 @@ class D435Node : public rclcpp::Node
 {
 public:
   D435Node()
-      : Node("d435_node")
+      : Node("d435_node"), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_)
   {
     // Get execution parameters
     this->declare_parameter<bool>("is_color", false);
-    this->declare_parameter<bool>("publish_depth", false);
+    this->declare_parameter<bool>("publish_depth", true);
     this->declare_parameter<bool>("publish_pointcloud", false);
-    this->declare_parameter<int>("fps", 6);  // can only take the values of 
+    this->declare_parameter<int>("fps", 30);  // can only take the values of 
     this->get_parameter("is_color", is_color_);
     this->get_parameter("publish_depth", publish_depth_);
     this->get_parameter("publish_pointcloud", publish_pointcloud_);
@@ -68,18 +69,25 @@ public:
     else
     {
       rs2::config cfg;
-      cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, 6);
+      cfg.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16, fps_);
       pipe_.start(cfg);
     }
     RCLCPP_INFO(logger_, "Capture Pipeline started!");
 
     // Publishers
-    align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
-    align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 1);
-    pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 1);
+    if (publish_depth_){
+      align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
+      align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 10);
+    }
+    if(publish_pointcloud_)
+      pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 10);
 
+
+    //Tf Buffer
+    //tf_buffer_ = new tf2_ros::Buffer(this->get_clock());
+    //tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
     // Timer
-    timer_ = this->create_wall_timer(200ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(50ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
@@ -117,7 +125,6 @@ private:
   void SetupStream()
   {
     // Parameters of the video profile we want
-    rs2_format depth_format = RS2_FORMAT_Z16;
     rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
     std::string stream_name = "color";
@@ -255,12 +262,15 @@ private:
     auto bpp = image.get_bytes_per_pixel();
     auto height = image.get_height();
     auto width = image.get_width();
+    img->header.stamp = rclcpp::Clock().now();
     img->width = width;
     img->height = height;
     img->is_bigendian = false;
     img->step = width * bpp;
     img->header.frame_id = "camera_link_d435";
-    img->header.stamp = rclcpp::Clock().now();
+    // Wait for transform to be available begfore publishing
+    while(!tf_buffer_.canTransform("odom", "camera_link_t265", tf2::TimePointZero, 10s )){};
+    
     align_depth_publisher_.publish(img);
     align_depth_camera_info_publisher_->publish(camera_info_);
   }
@@ -345,20 +355,32 @@ private:
 
   void TimerCallback()
   {
-    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    //RCLCPP_INFO(logger_, "publish pc: %d",std::chrono::duration_cast<std::chrono::milliseconds>(end - begin_).count());
-    //begin_=end;
+    // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
-    rs2::align align(RS2_STREAM_COLOR);
-    aligned_frameset_ = frames.apply_filter(align);
+
+    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //RCLCPP_INFO(logger_, "wait frames: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
+    //begin=end;
+
     // If depth image is to be published, publish, otherwise only publish Pointcloud
+    if(publish_pointcloud_){
+      if (is_color_){
+        rs2::align align(RS2_STREAM_COLOR);
+        aligned_frameset_ = frames.apply_filter(align);
+      }
+      else
+        aligned_frameset_ = frames;
+      publishAlignedPCTopic();
+    }
+    else
+      aligned_frameset_ = frames;
+
     if (publish_depth_)
       PublishAlignedDepthImg();
-    if(publish_pointcloud_)
-      publishAlignedPCTopic();
   }
-
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
   rclcpp::Logger logger_ = rclcpp::get_logger("D435Node");
   rclcpp::TimerBase::SharedPtr timer_;
   std::chrono::steady_clock::time_point begin_;
@@ -386,7 +408,7 @@ private:
   bool publish_depth_ = true;
   bool publish_pointcloud_ = true;
 
-  int fps_ = 6;
+  int fps_ = 30;
 };
 
 int main(int argc, char **argv)

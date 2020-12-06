@@ -111,7 +111,7 @@ private:
       // Publish tf data
       tf2_msgs::msg::TFMessage tfs;
       geometry_msgs::msg::TransformStamped tf;
-      tf.header.stamp = odom_msg.header.stamp;
+      
       tf.header.frame_id = "odom";
       tf.child_frame_id = "camera_link_t265";
       tf.transform.translation.x = pose_data.translation.x;
@@ -121,6 +121,7 @@ private:
       tf.transform.rotation.y = -pose_data.rotation.x;
       tf.transform.rotation.z = pose_data.rotation.y;
       tf.transform.rotation.w = pose_data.rotation.w;
+      tf.header.stamp = rclcpp::Clock().now();
       tf_broadcaster_.sendTransform(tf);
     }
   }

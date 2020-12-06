@@ -87,7 +87,7 @@ ament_target_dependencies(rs_d435_node
   "pcl_conversions"
   "cv_bridge"
   "image_transport"
-
+  "tf2_ros"
 )
 
 target_link_libraries(rs_d435_node

@@ -85,7 +85,8 @@ def generate_launch_description():
             output='log',
             parameters=[{'use_sim_time': use_sim_time}],
             arguments=['-configuration_directory', cartographer_config_dir, '-configuration_basename', configuration_basename],
-            remappings=[('odom','rs_t265/odom')]),
+            remappings=[('odom','rs_t265/odom'),
+            ('imu','rs_t265/imu')]),
 
          DeclareLaunchArgument(
             'resolution',

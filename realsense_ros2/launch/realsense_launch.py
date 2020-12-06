@@ -20,7 +20,7 @@ def generate_launch_description():
             node_name='rs_d435',
             output='screen',
             parameters=[
-                {"is_color": True},
+                {"is_color": False},
                 {"publish_depth": True},
                 {"publish_pointcloud": True},
                 {"fps": 15}      # Can only take values of 6,15,30 or 60
