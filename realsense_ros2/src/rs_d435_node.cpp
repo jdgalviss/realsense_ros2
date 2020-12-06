@@ -269,7 +269,6 @@ private:
     img->step = width * bpp;
     img->header.frame_id = "camera_link_d435";
     // Wait for transform to be available begfore publishing
-    
     while(!tf_buffer_.canTransform("odom", "camera_link_t265", tf2::TimePointZero, 10s )){};
     
     align_depth_publisher_.publish(img);
@@ -357,11 +356,10 @@ private:
   void TimerCallback()
   {
     // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
 
-//std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     //RCLCPP_INFO(logger_, "wait frames: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
     //begin=end;
 
@@ -374,18 +372,12 @@ private:
       else
         aligned_frameset_ = frames;
       publishAlignedPCTopic();
-      
     }
     else
       aligned_frameset_ = frames;
 
     if (publish_depth_)
       PublishAlignedDepthImg();
-    
-
-//end = std::chrono::steady_clock::now();
-//    RCLCPP_INFO(logger_, "publish: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
-//    begin=end;
   }
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
