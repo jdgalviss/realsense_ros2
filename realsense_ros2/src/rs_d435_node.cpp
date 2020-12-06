@@ -87,7 +87,7 @@ public:
     //tf_buffer_ = new tf2_ros::Buffer(this->get_clock());
     //tf_listener_ = new tf2_ros::TransformListener(tf_buffer_);
     // Timer
-    timer_ = this->create_wall_timer(1000ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(50ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
@@ -125,7 +125,6 @@ private:
   void SetupStream()
   {
     // Parameters of the video profile we want
-    rs2_format depth_format = RS2_FORMAT_Z16;
     rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
     std::string stream_name = "color";
@@ -357,7 +356,7 @@ private:
 
   void TimerCallback()
   {
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
