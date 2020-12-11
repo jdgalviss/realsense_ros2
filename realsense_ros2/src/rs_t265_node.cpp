@@ -90,22 +90,22 @@ private:
       odom_msg.header.frame_id = "odom";
       odom_msg.child_frame_id = "camera_link_t265";
       odom_msg.header.stamp = rclcpp::Clock().now();
-      odom_msg.pose.pose.position.x = pose_data.translation.x;
-      odom_msg.pose.pose.position.y = pose_data.translation.y;
-      odom_msg.twist.twist.linear.z = pose_data.translation.z;
+      odom_msg.pose.pose.position.x = -pose_data.translation.z;
+      odom_msg.pose.pose.position.y = -pose_data.translation.x;
+      odom_msg.pose.pose.position.z = pose_data.translation.y;
 
       odom_msg.pose.pose.orientation.x = -pose_data.rotation.z;
       odom_msg.pose.pose.orientation.y = -pose_data.rotation.x;
       odom_msg.pose.pose.orientation.z = pose_data.rotation.y;
       odom_msg.pose.pose.orientation.w = pose_data.rotation.w;
 
-      odom_msg.twist.twist.linear.x = pose_data.velocity.x;
-      odom_msg.twist.twist.linear.y = pose_data.velocity.y;
-      odom_msg.twist.twist.linear.z = pose_data.velocity.z;
+      odom_msg.twist.twist.linear.x = -pose_data.velocity.z;
+      odom_msg.twist.twist.linear.y = -pose_data.velocity.x;
+      odom_msg.twist.twist.linear.z = pose_data.velocity.y;
 
-      odom_msg.twist.twist.angular.x = pose_data.angular_velocity.x;
-      odom_msg.twist.twist.angular.y = pose_data.angular_velocity.y;
-      odom_msg.twist.twist.angular.z = pose_data.angular_velocity.z;
+      odom_msg.twist.twist.angular.x = -pose_data.angular_velocity.z;
+      odom_msg.twist.twist.angular.y = -pose_data.angular_velocity.x;
+      odom_msg.twist.twist.angular.z = pose_data.angular_velocity.y;
       odom_publisher_->publish(odom_msg);
 
       // Publish tf data
@@ -114,9 +114,9 @@ private:
       
       tf.header.frame_id = "odom";
       tf.child_frame_id = "camera_link_t265";
-      tf.transform.translation.x = pose_data.translation.x;
-      tf.transform.translation.y = pose_data.translation.y;
-      tf.transform.translation.z = pose_data.translation.z;
+      tf.transform.translation.x = -pose_data.translation.z;
+      tf.transform.translation.y = -pose_data.translation.x;
+      tf.transform.translation.z = pose_data.translation.y;
       tf.transform.rotation.x = -pose_data.rotation.z;
       tf.transform.rotation.y = -pose_data.rotation.x;
       tf.transform.rotation.z = pose_data.rotation.y;
