@@ -3,6 +3,9 @@
 [image1]: imgs/rs-viewer.png "rs-viewer"
 [image2]: imgs/rviz.gif "rviz"
 [image3]: imgs/cartographer.png "cartographer"
+[image4]: imgs/cartographer.gif "2D"
+[image5]: imgs/rtabmap.gif "rtabmap"
+
 
 
 
@@ -79,11 +82,20 @@ ros2 launch realsense_ros2 realsense_launch.py
 ![rviz][image2]
 
 ### T265 tracking and D435 depth cameras simultaneously with ros cartographer 2D SLAM
-In one terminal, launch the two cameras:
+In one terminal, launch the 2 cameras and ros cartographer:
 ```bash
 ros2 launch realsense_ros2 slam_cartographer_launch.py
 ```
-![cartographer][image3]
+![cartographer][image4]
+
+### T265 tracking and D435 depth cameras simultaneously with rtabmap 3D SLAM
+First, Download and Install rtabmap and rtabmap_ros following these [instructions](https://github.com/introlab/rtabmap_ros/tree/ros2#rtabmap_ros) in the branch **ros2**.
+
+In one terminal, launch the two cameras and rtabmap ros (make sure that you source the workspace where rtabmap_ros was built):
+```bash
+ros2 launch realsense_ros2 slam_cartographer_launch.py
+```
+![cartographer][image5]
 
 ## Published topics
 
