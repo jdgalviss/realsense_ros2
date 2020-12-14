@@ -39,6 +39,8 @@ using stream_index_pair = std::pair<rs2_stream, int>;
 
 const stream_index_pair COLOR{RS2_STREAM_COLOR, 0};
 const stream_index_pair DEPTH{RS2_STREAM_DEPTH, 0};
+const stream_index_pair INFRA1{RS2_STREAM_INFRARED, 1};
+const stream_index_pair INFRA2{RS2_STREAM_INFRARED, 2};
 
 /*! D435 Node class */
 class D435Node : public rclcpp::Node
@@ -76,12 +78,13 @@ public:
     if (publish_depth_)
     {
       align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
-      align_depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 10);
+      depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 10);
     }
     if (publish_pointcloud_)
       pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 10);
     if (publish_image_raw_)
       image_raw_publisher_ = image_transport::create_publisher(this, "rs_d435/image_raw");
+
 
     // Timer
     timer_ = this->create_wall_timer(10ms, std::bind(&D435Node::TimerCallback, this));
@@ -123,6 +126,7 @@ private:
   {
     // Parameters of the video profile we want
     rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
+    rs2_format format_depth = RS2_FORMAT_Z16;
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
     std::string stream_name = "color";
     std::string module_name = "0";
@@ -148,25 +152,32 @@ private:
         for (auto &profile : profiles)
         {
           auto video_profile = profile.as<rs2::video_stream_profile>();
-          RCLCPP_DEBUG(logger_, "Video profile found with  format: %d, W: %d, H: %d, FPS: %d ", video_profile.format(), video_profile.width(),
+          RCLCPP_INFO(logger_, "Video profile found with  format: %d, W: %d, H: %d, FPS: %d, stream_idx: %d ", video_profile.format(), video_profile.width(),
                        video_profile.height(), video_profile.fps());
           // Choose right profile depending on parameters
-          if (video_profile.format() == format &&
-              video_profile.width() == DEPTH_WIDTH &&
+          if (video_profile.width() == DEPTH_WIDTH &&
               video_profile.height() == DEPTH_HEIGHT &&
               video_profile.fps() == fps_)
           {
-            // Update calibration data with information from video profile
-            UpdateCalibData(video_profile);
-            auto video_profile_ = video_profile;
-            image_ =
-                cv::Mat(video_profile.width(), video_profile.height(), format, cv::Scalar(0, 0, 0));
-            RCLCPP_INFO(logger_, "%s stream is enabled - width: %d, height: %d, fps: %d",
-                        module_name.c_str(), video_profile_.width(), video_profile_.height(), video_profile_.fps());
-            break;
+            if(video_profile.format() == format){
+              // Update calibration data with information from video profile
+              UpdateCalibData(video_profile);
+              video_profile_ = profile;
+              image_ =
+                  cv::Mat(video_profile.width(), video_profile.height(), format, cv::Scalar(0, 0, 0));
+              RCLCPP_INFO(logger_, "%s stream is enabled - width: %d, height: %d, fps: %d",
+                          module_name.c_str(), video_profile.width(), video_profile.height(), video_profile.fps());
+              break;
+            }
+            else if (video_profile.format() == format_depth){
+              depth_video_profile_ = profile;
+            }
           }
         }
+
       }
+      UpdateCalibData(depth_video_profile_.as<rs2::video_stream_profile>());
+
     }
     catch (const std::exception &ex)
     {
@@ -182,64 +193,60 @@ private:
 
   void UpdateCalibData(const rs2::video_stream_profile &video_profile)
   {
+    stream_index_pair stream_index{video_profile.stream_type(), video_profile.stream_index()};
     // Get profile intrinsics and save in camera_info msg
     auto intrinsic = video_profile.get_intrinsics();
     stream_intrinsics_ = intrinsic;
-    camera_info_.width = intrinsic.width;
-    camera_info_.height = intrinsic.height;
-    camera_info_.header.frame_id = "camera_link_d435";
-
-    camera_info_.k.at(0) = intrinsic.fx;
-    camera_info_.k.at(2) = intrinsic.ppx;
-    camera_info_.k.at(4) = intrinsic.fy;
-    camera_info_.k.at(5) = intrinsic.ppy;
-    camera_info_.k.at(8) = 1;
-
-    camera_info_.p.at(0) = camera_info_.k.at(0);
-    camera_info_.p.at(1) = 0;
-    camera_info_.p.at(2) = camera_info_.k.at(2);
-    camera_info_.p.at(3) = 0;
-    camera_info_.p.at(4) = 0;
-    camera_info_.p.at(5) = camera_info_.k.at(4);
-    camera_info_.p.at(6) = camera_info_.k.at(5);
-    camera_info_.p.at(7) = 0;
-    camera_info_.p.at(8) = 0;
-    camera_info_.p.at(9) = 0;
-    camera_info_.p.at(10) = 1;
-    camera_info_.p.at(11) = 0;
-
-    // If video profile corresponds to Depth, save extrinsics as well
-    stream_index_pair stream_index{video_profile.stream_type(), video_profile.stream_index()};
     if (stream_index == DEPTH)
     {
-      rs2::stream_profile depth_profile;
+      camera_info_depth_.width = intrinsic.width;
+      camera_info_depth_.height = intrinsic.height;
+      camera_info_depth_.header.frame_id = "camera_link_d435";
+      camera_info_depth_.k.at(0) = intrinsic.fx;
+      camera_info_depth_.k.at(2) = intrinsic.ppx;
+      camera_info_depth_.k.at(4) = intrinsic.fy;
+      camera_info_depth_.k.at(5) = intrinsic.ppy;
+      camera_info_depth_.k.at(8) = 1;
+      camera_info_depth_.p.at(0) = camera_info_depth_.k.at(0);
+      camera_info_depth_.p.at(1) = 0;
+      camera_info_depth_.p.at(2) = camera_info_depth_.k.at(2);
+      camera_info_depth_.p.at(3) = 0;
+      camera_info_depth_.p.at(4) = 0;
+      camera_info_depth_.p.at(5) = camera_info_depth_.k.at(4);
+      camera_info_depth_.p.at(6) = camera_info_depth_.k.at(5);
+      camera_info_depth_.p.at(7) = 0;
+      camera_info_depth_.p.at(8) = 0;
+      camera_info_depth_.p.at(9) = 0;
+      camera_info_depth_.p.at(10) = 1;
+      camera_info_depth_.p.at(11) = 0;
 
-      depth2color_extrinsics_ = depth_profile.get_extrinsics_to(video_profile);
+      depth2color_extrinsics_ = depth_video_profile_.get_extrinsics_to(video_profile_.as<rs2::video_stream_profile>());
+
       // set depth to color translation values in Projection matrix (P)
-      camera_info_.p.at(3) = depth2color_extrinsics_.translation[0];  // Tx
-      camera_info_.p.at(7) = depth2color_extrinsics_.translation[1];  // Ty
-      camera_info_.p.at(11) = depth2color_extrinsics_.translation[2]; // Tz
-    }
-    camera_info_.distortion_model = "plumb_bob";
+      camera_info_depth_.p.at(3) = depth2color_extrinsics_.translation[0];  // Tx
+      camera_info_depth_.p.at(7) = depth2color_extrinsics_.translation[1];  // Ty
+      camera_info_depth_.p.at(11) = depth2color_extrinsics_.translation[2]; // Tz
+      camera_info_depth_.distortion_model = "plumb_bob";
 
-    // set R (rotation matrix) values to identity matrix
-    camera_info_.r.at(0) = 1.0;
-    camera_info_.r.at(1) = 0.0;
-    camera_info_.r.at(2) = 0.0;
-    camera_info_.r.at(3) = 0.0;
-    camera_info_.r.at(4) = 1.0;
-    camera_info_.r.at(5) = 0.0;
-    camera_info_.r.at(6) = 0.0;
-    camera_info_.r.at(7) = 0.0;
-    camera_info_.r.at(8) = 1.0;
+      // set R (rotation matrix) values to identity matrix
+      camera_info_depth_.r.at(0) = 1.0;
+      camera_info_depth_.r.at(1) = 0.0;
+      camera_info_depth_.r.at(2) = 0.0;
+      camera_info_depth_.r.at(3) = 0.0;
+      camera_info_depth_.r.at(4) = 1.0;
+      camera_info_depth_.r.at(5) = 0.0;
+      camera_info_depth_.r.at(6) = 0.0;
+      camera_info_depth_.r.at(7) = 0.0;
+      camera_info_depth_.r.at(8) = 1.0;
 
-    for (int i = 0; i < 5; i++)
-    {
-      camera_info_.d.push_back(intrinsic.coeffs[i]);
+      for (int i = 0; i < 5; i++)
+      {
+        camera_info_depth_.d.push_back(intrinsic.coeffs[i]);
+      }
     }
   }
 
-  void PublishAlignedDepthImg()
+  void PublishAlignedDepthImg(const rclcpp::Time & t)
   {
     // Get Depth frame
     rs2::depth_frame aligned_depth = aligned_frameset_.get_depth_frame();
@@ -258,7 +265,7 @@ private:
     auto bpp = image.get_bytes_per_pixel();
     auto height = image.get_height();
     auto width = image.get_width();
-    img->header.stamp = rclcpp::Clock().now();
+    img->header.stamp = t;
     img->width = width;
     img->height = height;
     img->is_bigendian = false;
@@ -270,11 +277,11 @@ private:
     };
 
     align_depth_publisher_.publish(img);
-    camera_info_.header.stamp = img->header.stamp;
-    align_depth_camera_info_publisher_->publish(camera_info_);
+    camera_info_depth_.header.stamp = t;
+    depth_camera_info_publisher_->publish(camera_info_depth_);
   }
 
-  void publishAlignedPCTopic()
+  void publishAlignedPCTopic(const rclcpp::Time & t)
   {
     // Get Depth Frame
     rs2::depth_frame aligned_depth = aligned_frameset_.get_depth_frame();
@@ -289,8 +296,7 @@ private:
     }
     if (publish_image_raw_)
     {
-      if (rs2::video_frame image_frame = aligned_frameset_.first_or_default(RS2_STREAM_COLOR))
-      {
+      auto image_frame = aligned_frameset_.get_color_frame();
         cv::Mat image_raw;
         image_raw = cv::Mat(cv::Size(image_frame.get_width(), image_frame.get_height()), CV_8UC3,
                             const_cast<void *>(image_frame.get_data()), cv::Mat::AUTO_STEP);
@@ -306,14 +312,13 @@ private:
         img_msg->is_bigendian = false;
         img_msg->step = width * bpp;
         img_msg->header.frame_id = "camera_link_d435";
-        img_msg->header.stamp = rclcpp::Clock().now();
+        img_msg->header.stamp = t;
         image_raw_publisher_.publish(img_msg);
-      }
     }
     unsigned char *color_data = image_.data;
     // Create pointcloud msg
     sensor_msgs::msg::PointCloud2 msg_pointcloud;
-    msg_pointcloud.header.stamp = rclcpp::Clock().now();
+    msg_pointcloud.header.stamp = t;
     msg_pointcloud.header.frame_id = "camera_link_d435";
     msg_pointcloud.width = depth_intrinsics.width;
     msg_pointcloud.height = depth_intrinsics.height;
@@ -375,7 +380,7 @@ private:
     pcl_publisher_->publish(msg_pointcloud);
   }
 
-  void publishRawImage()
+  void publishRawImage(const rclcpp::Time & t)
   {
     if (rs2::video_frame image_frame = aligned_frameset_.first_or_default(RS2_STREAM_COLOR))
     {
@@ -394,7 +399,7 @@ private:
       img_msg->is_bigendian = false;
       img_msg->step = width * bpp;
       img_msg->header.frame_id = "camera_link_d435";
-      img_msg->header.stamp = rclcpp::Clock().now();
+      img_msg->header.stamp = t;
       image_raw_publisher_.publish(img_msg);
     }
   }
@@ -403,35 +408,23 @@ private:
     // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
-
+    auto time_stamp = rclcpp::Clock().now();
+    rs2::align align(RS2_STREAM_COLOR);
+    aligned_frameset_ = frames.apply_filter(align);
     //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     //RCLCPP_INFO(logger_, "wait frames: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
     //begin=end;
 
     // If depth image is to be published, publish, otherwise only publish Pointcloud
     if (publish_pointcloud_)
-    {
-      if (is_color_)
-      {
-        rs2::align align(RS2_STREAM_COLOR);
-        aligned_frameset_ = frames.apply_filter(align);
-      }
-      else
-      {
-        aligned_frameset_ = frames;
-      }
-      publishAlignedPCTopic();
-    }
+      publishAlignedPCTopic(time_stamp);
     else
     {
-      aligned_frameset_ = frames;
       if (publish_image_raw_)
-      {
-        publishRawImage();
-      }
+        publishRawImage(time_stamp);
     }
     if (publish_depth_)
-      PublishAlignedDepthImg();
+      PublishAlignedDepthImg(time_stamp);
   }
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
@@ -443,7 +436,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pcl_publisher_;
   image_transport::Publisher align_depth_publisher_;
   image_transport::Publisher image_raw_publisher_;
-  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr align_depth_camera_info_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr depth_camera_info_publisher_;
 
   // Realsense variables
   rs2::device dev_;
@@ -453,10 +446,13 @@ private:
   std::unique_ptr<rs2::context> ctx_;
   rs2::frameset aligned_frameset_;
   rs2::pipeline pipe_;
+  rs2::stream_profile video_profile_;
+  rs2::stream_profile depth_video_profile_;
 
   cv::Mat image_;
   float depth_scale_meters_ = 1;
-  sensor_msgs::msg::CameraInfo camera_info_;
+  sensor_msgs::msg::CameraInfo camera_info_depth_;
+
 
   // Parameters
   bool is_color_ = true;

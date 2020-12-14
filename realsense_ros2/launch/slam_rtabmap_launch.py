@@ -11,16 +11,18 @@ def generate_launch_description():
 
     parameters=[{
           'queue_size':100,
-          'frame_id':'base_link',
+          'frame_id':'camera_link_t265',
           'use_sim_time':use_sim_time,
           'subscribe_depth':True}]
+
     remappings=[
           ('odom', 'rs_t265/odom'),
           ('rgb/image', '/rs_d435/image_raw'),
           ('rgb/camera_info', 'rs_d435/aligned_depth/camera_info'),
           ('depth/image', '/rs_d435/aligned_depth/image_raw')]
+
     return LaunchDescription([
-        Node(
+                Node(
             package='realsense_ros2',
             node_executable='rs_t265_node',
             node_name='rs_t265',
@@ -32,11 +34,11 @@ def generate_launch_description():
             node_name='rs_d435',
             output='screen',
             parameters=[
-                {"is_color": True},
                 {"publish_depth": True},
-                {"publish_pointcloud": False},
+                {"publish_pointcloud": True},
+                {"is_color": False},
                 {"publish_image_raw_": True},
-                {"fps": 30}      # Can only take values of 6,15,30 or 60
+                {"fps": 15}      # Can only take values of 6,15,30 or 60
             ]
         ),
         Node(
@@ -51,8 +53,8 @@ def generate_launch_description():
             package='tf2_ros',
             node_executable='static_transform_publisher',
             output='screen',
-            arguments=['-0.15', '0.0', '0.0', '-1.5708', '0.0', '-1.5708', 'camera_link_t265', 'base_link']
-            ),
+            arguments=['-0.15', '0.0', '0.0', '0.0', '0.0', '0.0', 'camera_link_t265', 'base_link']
+        ),
 
         # Set env var to print messages to stdout immediately
         SetEnvironmentVariable('RCUTILS_CONSOLE_STDOUT_LINE_BUFFERED', '1'),
@@ -67,11 +69,11 @@ def generate_launch_description():
             package='rtabmap_ros', node_executable='rtabmap', output='screen',
             parameters=parameters,
             remappings=remappings,
-            arguments=['-d'])
+            arguments=['-d']),
 
-        # Node(
-        #     package='rtabmap_ros', node_executable='rtabmapviz', output='screen',
-        #     parameters=parameters,
-        #     remappings=remappings),
+        Node(
+            package='rtabmap_ros', node_executable='rtabmapviz', output='screen',
+            parameters=parameters,
+            remappings=remappings),
 
     ])
