@@ -152,7 +152,7 @@ private:
         for (auto &profile : profiles)
         {
           auto video_profile = profile.as<rs2::video_stream_profile>();
-          RCLCPP_INFO(logger_, "Video profile found with  format: %d, W: %d, H: %d, FPS: %d, stream_idx: %d ", video_profile.format(), video_profile.width(),
+          RCLCPP_DEBUG(logger_, "Video profile found with  format: %d, W: %d, H: %d, FPS: %d", video_profile.format(), video_profile.width(),
                        video_profile.height(), video_profile.fps());
           // Choose right profile depending on parameters
           if (video_profile.width() == DEPTH_WIDTH &&
