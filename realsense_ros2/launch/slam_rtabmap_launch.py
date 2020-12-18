@@ -10,8 +10,8 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
 
     parameters=[{
-          'queue_size':100,
-          'frame_id':'camera_link_t265',
+          'queue_size':20,
+          'frame_id':'camera_link_d435b',
           'use_sim_time':use_sim_time,
           'subscribe_depth':True}]
 
@@ -35,7 +35,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {"publish_depth": True},
-                {"publish_pointcloud": True},
+                {"publish_pointcloud": False},
                 {"is_color": False},
                 {"publish_image_raw_": True},
                 {"fps": 15}      # Can only take values of 6,15,30 or 60
@@ -48,6 +48,15 @@ def generate_launch_description():
             output='screen',
             arguments=['0.0', '0.025', '0.03', '-1.5708', '0.0', '-1.5708', 'camera_link_t265', 'camera_link_d435']
             ),
+
+        Node(
+            ## Configure the TF of the robot to the origin of the map coordinates
+            package='tf2_ros',
+            node_executable='static_transform_publisher',
+            output='screen',
+            arguments=['0.0', '0.025', '0.03', '0.0', '0.0', '0.0', 'camera_link_t265', 'camera_link_d435b']
+            ),
+
         Node(
             ## Configure the TF of the robot to the origin of the map coordinates
             package='tf2_ros',

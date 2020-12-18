@@ -161,7 +161,7 @@ private:
           {
             if(video_profile.format() == format){
               // Update calibration data with information from video profile
-              UpdateCalibData(video_profile);
+              // UpdateCalibData(video_profile);
               video_profile_ = profile;
               image_ =
                   cv::Mat(video_profile.width(), video_profile.height(), format, cv::Scalar(0, 0, 0));
@@ -223,9 +223,9 @@ private:
       depth2color_extrinsics_ = depth_video_profile_.get_extrinsics_to(video_profile_.as<rs2::video_stream_profile>());
 
       // set depth to color translation values in Projection matrix (P)
-      camera_info_depth_.p.at(3) = depth2color_extrinsics_.translation[0];  // Tx
-      camera_info_depth_.p.at(7) = depth2color_extrinsics_.translation[1];  // Ty
-      camera_info_depth_.p.at(11) = depth2color_extrinsics_.translation[2]; // Tz
+      // camera_info_depth_.p.at(3) = depth2color_extrinsics_.translation[0];  // Tx
+      // camera_info_depth_.p.at(7) = depth2color_extrinsics_.translation[1];  // Ty
+      // camera_info_depth_.p.at(11) = depth2color_extrinsics_.translation[2]; // Tz
       camera_info_depth_.distortion_model = "plumb_bob";
 
       // set R (rotation matrix) values to identity matrix
@@ -409,8 +409,15 @@ private:
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
     auto time_stamp = rclcpp::Clock().now();
-    rs2::align align(RS2_STREAM_COLOR);
-    aligned_frameset_ = frames.apply_filter(align);
+    if (is_color_ || publish_image_raw_){
+      rs2::align align(RS2_STREAM_COLOR);
+      aligned_frameset_ = frames.apply_filter(align);
+    }
+    else
+    {
+      aligned_frameset_ = frames;
+    }
+    
     //std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     //RCLCPP_INFO(logger_, "wait frames: %d",std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count());
     //begin=end;
