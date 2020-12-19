@@ -125,8 +125,8 @@ private:
   void SetupStream()
   {
     // Parameters of the video profile we want
-    rs2_format format = RS2_FORMAT_RGB8;                       // libRS type
-    rs2_format format_depth = RS2_FORMAT_Z16;
+    rs2_format format = RS2_FORMAT_RGB8;  
+    rs2_format format_depth = RS2_FORMAT_Z16;                     // libRS type
     std::string encoding = sensor_msgs::image_encodings::RGB8; // ROS message type
     std::string stream_name = "color";
     std::string module_name = "0";
@@ -161,7 +161,7 @@ private:
           {
             if(video_profile.format() == format){
               // Update calibration data with information from video profile
-              // UpdateCalibData(video_profile);
+              UpdateCalibData(video_profile);
               video_profile_ = profile;
               image_ =
                   cv::Mat(video_profile.width(), video_profile.height(), format, cv::Scalar(0, 0, 0));
@@ -176,7 +176,7 @@ private:
         }
 
       }
-      UpdateCalibData(depth_video_profile_.as<rs2::video_stream_profile>());
+      // UpdateCalibData(depth_video_profile_.as<rs2::video_stream_profile>());
 
     }
     catch (const std::exception &ex)
@@ -197,7 +197,7 @@ private:
     // Get profile intrinsics and save in camera_info msg
     auto intrinsic = video_profile.get_intrinsics();
     stream_intrinsics_ = intrinsic;
-    if (stream_index == DEPTH)
+    if (stream_index == COLOR)
     {
       camera_info_depth_.width = intrinsic.width;
       camera_info_depth_.height = intrinsic.height;
@@ -220,7 +220,7 @@ private:
       camera_info_depth_.p.at(10) = 1;
       camera_info_depth_.p.at(11) = 0;
 
-      depth2color_extrinsics_ = depth_video_profile_.get_extrinsics_to(video_profile_.as<rs2::video_stream_profile>());
+      // depth2color_extrinsics_ = depth_video_profile_.get_extrinsics_to(video_profile_.as<rs2::video_stream_profile>());
 
       // set depth to color translation values in Projection matrix (P)
       // camera_info_depth_.p.at(3) = depth2color_extrinsics_.translation[0];  // Tx

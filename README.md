@@ -5,6 +5,8 @@
 [image3]: imgs/cartographer.png "cartographer"
 [image4]: imgs/cartographer.gif "2D"
 [image5]: imgs/rtabmap.gif "rtabmap"
+[image6]: imgs/rtabmap.png "rtabmap"
+
 
 
 
@@ -20,15 +22,16 @@ By running this wrapper you would be able to obtain:
 * Pointcloud from the realsense d435 depth stereo camera
 * Depth Image from the realsense d435 depth stereo camera
 
-This wrapper does not currently support the publication of raw images from the cameras.
-
 **Tested on Jetson Nano:
 L4T 32.4.3 [ JetPack 4.4 ]
    Ubuntu 18.04.4 LTS
    Kernel Version: 4.9.140-tegra**
 
+**Tested on Ubuntu 20.04 amd64:
+ROS2 Foxy**
+
 ## Requirements
-* ROS2 dashing (foxy on *foxy branch* not tested on Jetson Nano)
+* ROS2 dashing or foxy
 
 ## Installation
 1. Install librealsense2 as per the official [instructions](https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md).
@@ -95,7 +98,9 @@ In one terminal, launch the two cameras and rtabmap ros (make sure that you sour
 ```bash
 ros2 launch realsense_ros2 slam_cartographer_launch.py
 ```
-![cartographer][image5]
+![rtabmap][image5]
+![rtabmap2][image6]
+
 
 ## Published topics
 
@@ -107,6 +112,7 @@ ros2 launch realsense_ros2 slam_cartographer_launch.py
 
 ### rs_d435_node
 
-* rs_t265/point_cloud [sensor_msgs/PointCloud2]: Pointcloud from d435 depth camera.
-* rs_t265/aligned_depth/image_raw [sensor_msgs/Image]: Depth Image from d435 depth camera (only published if *publish_depth* parameter is set to true ).
+* rs_d435/point_cloud [sensor_msgs/PointCloud2]: Pointcloud from d435 depth camera.
+* rs_d435/aligned_depth/image_raw [sensor_msgs/Image]: Depth Image from d435 depth camera (only published if *publish_depth* parameter is set to true ).
+* rs_d435/image_raw [sensor_msgs/Image]: Raw Color images
 
