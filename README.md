@@ -96,7 +96,7 @@ First, Download and Install rtabmap and rtabmap_ros following these [instruction
 
 In one terminal, launch the two cameras and rtabmap ros (make sure that you source the workspace where rtabmap_ros was built):
 ```bash
-ros2 launch realsense_ros2 slam_cartographer_launch.py
+ros2 launch realsense_ros2 slam_rtabmap_launch.py
 ```
 ![rtabmap][image5]
 ![rtabmap2][image6]
