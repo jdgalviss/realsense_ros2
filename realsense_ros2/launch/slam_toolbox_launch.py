@@ -11,7 +11,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     realsense_prefix = get_package_share_directory('realsense_ros2')
     cartographer_config_dir = LaunchConfiguration('cartographer_config_dir', 
                                                     default=os.path.join(realsense_prefix, 'config'))
@@ -32,7 +32,7 @@ def generate_launch_description():
 
         DeclareLaunchArgument(
             'use_sim_time',
-            default_value='false',
+            default_value='true',
             description='Use simulation (Gazebo) clock if true'),
         
         Node(
@@ -56,6 +56,13 @@ def generate_launch_description():
             output='screen',
             arguments=['0.0', '0.025', '0.03', '0.0', '0.0', '0.0', 'camera_link_t265', 'camera_link_d435b']
             ),
+        Node(
+            ## Configure the TF of the robot to the origin of the map coordinates
+            package='tf2_ros',
+            node_executable='static_transform_publisher',
+            output='screen',
+            arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 'map', 'odom']
+            ),
         
         Node(
             package='depthimage_to_laserscan',
@@ -68,28 +75,12 @@ def generate_launch_description():
             ),
 
         Node(
-            package='cartographer_ros',
-            node_executable='cartographer_node',
-            output='log',
-            parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-configuration_directory', cartographer_config_dir, '-configuration_basename', configuration_basename],
-            remappings=[('odom','rs_t265/odom'),
-            ('imu','rs_t265/imu')]),
-
-         DeclareLaunchArgument(
-            'resolution',
-            default_value=resolution,
-            description='Resolution of a grid cell in the published occupancy grid'),
-
-        DeclareLaunchArgument(
-            'publish_period_sec',
-            default_value=publish_period_sec,
-            description='OccupancyGrid publishing period'),
-
-        Node(
-            package='cartographer_ros',
-            node_executable='occupancy_grid_node',
-            node_name='occupancy_grid_node',
-            parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-resolution', resolution, '-publish_period_sec', publish_period_sec]),
+          parameters=[
+            get_package_share_directory("realsense_ros2") + '/config/mapper_params_offline.yaml'
+          ],
+          package='slam_toolbox',
+          executable='sync_slam_toolbox_node',
+          name='slam_toolbox',
+          output='screen'
+        )
     ])

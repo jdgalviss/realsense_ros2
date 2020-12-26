@@ -351,7 +351,7 @@ private:
         rs2_deproject_pixel_to_point(depth_point, &depth_intrinsics, depth_pixel, scaled_depth);
         auto iter_offset = x + y * depth_intrinsics.width;
 
-        if (depth_point[2] <= 0.f || depth_point[2] > 5.f)
+        if (depth_point[2] <= 0.f || depth_point[2] > 3.5f)
         {
           *(iter_x + iter_offset) = std_nan;
           *(iter_y + iter_offset) = std_nan;
