@@ -11,7 +11,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     realsense_prefix = get_package_share_directory('realsense_ros2')
     cartographer_config_dir = LaunchConfiguration('cartographer_config_dir', 
                                                     default=os.path.join(realsense_prefix, 'config'))
@@ -35,25 +35,25 @@ def generate_launch_description():
             default_value='false',
             description='Use simulation (Gazebo) clock if true'),
 
-        Node(
-            package='realsense_ros2',
-            node_executable='rs_t265_node',
-            node_name='rs_t265',
-            output='screen'
-        ),
-        Node(
-            package='realsense_ros2',
-            node_executable='rs_d435_node',
-            node_name='rs_d435',
-            output='screen',
-            parameters=[
-                {"is_color": False},
-                {"publish_depth": True},
-                {"publish_pointcloud": False},
-                {"publish_image_raw_": True},
-                {"fps": 15}      # Can only take values of 6,15,30 or 60
-            ]
-        ),
+        # Node(
+        #     package='realsense_ros2',
+        #     node_executable='rs_t265_node',
+        #     node_name='rs_t265',
+        #     output='screen'
+        # ),
+        # Node(
+        #     package='realsense_ros2',
+        #     node_executable='rs_d435_node',
+        #     node_name='rs_d435',
+        #     output='screen',
+        #     parameters=[
+        #         {"is_color": False},
+        #         {"publish_depth": True},
+        #         {"publish_pointcloud": False},
+        #         {"publish_image_raw_": True},
+        #         {"fps": 15}      # Can only take values of 6,15,30 or 60
+        #     ]
+        # ),
         Node(
             ## Configure the TF of the robot to the origin of the map coordinates
             package='tf2_ros',
@@ -67,7 +67,7 @@ def generate_launch_description():
             package='tf2_ros',
             node_executable='static_transform_publisher',
             output='screen',
-            arguments=['0.0', '0.025', '0.03', '0.0', '0.0', '0.0', 'camera_link_t265', 'camera_link_d435_scan']
+            arguments=['0.0', '0.025', '0.03', '0.0', '0.0', '0.0', 'camera_link_t265', 'camera_link_d435b']
             ),
         Node(
             ## Configure the TF of the robot to the origin of the map coordinates
@@ -82,7 +82,7 @@ def generate_launch_description():
             node_executable='depthimage_to_laserscan_node',
             node_name='scan',
             output='screen',
-            parameters=[{'output_frame':'camera_link_d435_scan'}],
+            parameters=[{'output_frame':'camera_link_d435b'}],
             remappings=[('depth','rs_d435/aligned_depth/image_raw'),
                         ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
             ),
