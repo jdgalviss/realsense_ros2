@@ -35,25 +35,25 @@ def generate_launch_description():
             default_value='false',
             description='Use simulation (Gazebo) clock if true'),
 
-        # Node(
-        #     package='realsense_ros2',
-        #     node_executable='rs_t265_node',
-        #     node_name='rs_t265',
-        #     output='screen'
-        # ),
-        # Node(
-        #     package='realsense_ros2',
-        #     node_executable='rs_d435_node',
-        #     node_name='rs_d435',
-        #     output='screen',
-        #     parameters=[
-        #         {"is_color": False},
-        #         {"publish_depth": True},
-        #         {"publish_pointcloud": False},
-        #         {"publish_image_raw_": True},
-        #         {"fps": 15}      # Can only take values of 6,15,30 or 60
-        #     ]
-        # ),
+        Node(
+            package='realsense_ros2',
+            node_executable='rs_t265_node',
+            node_name='rs_t265',
+            output='screen'
+        ),
+        Node(
+            package='realsense_ros2',
+            node_executable='rs_d435_node',
+            node_name='rs_d435',
+            output='screen',
+            parameters=[
+                {"is_color": False},
+                {"publish_depth": True},
+                {"publish_pointcloud": False},
+                {"publish_image_raw_": True},
+                {"fps": 15}      # Can only take values of 6,15,30 or 60
+            ]
+        ),
         Node(
             ## Configure the TF of the robot to the origin of the map coordinates
             package='tf2_ros',

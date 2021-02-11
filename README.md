@@ -14,7 +14,7 @@
 # realsense_ros2
 Ros 2 wrapper for intel realsense cameras d435 and t265.
 
-This wrapper's implementation is specially developed with the objective of running it in Nvidia's Jetson Nano (I had a hard time using the official realsense's ros2 wrapper), however it should also work on any other platform running Ubuntu 18.04.
+This wrapper's implementation is specially developed with the objective of running it in Nvidia's Jetson Nano, however it should also work on any other platform running Ubuntu 18.04 and 20.04.
 
 By running this wrapper you would be able to obtain:
 
@@ -25,13 +25,14 @@ By running this wrapper you would be able to obtain:
 **Tested on Jetson Nano:
 L4T 32.4.3 [ JetPack 4.4 ]
    Ubuntu 18.04.4 LTS
-   Kernel Version: 4.9.140-tegra**
+   Kernel Version: 4.9.140-tegra 
+   ROS 2 Eloquent**
 
 **Tested on Ubuntu 20.04 amd64:
 ROS2 Foxy**
 
 ## Requirements
-* ROS2 dashing or foxy
+* ROS2 eloquent or foxy
 
 ## Installation
 1. Install librealsense2 as per the official [instructions](https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md).
@@ -89,6 +90,9 @@ In one terminal, launch the 2 cameras and ros cartographer:
 ```bash
 ros2 launch realsense_ros2 slam_cartographer_launch.py
 ```
+
+This requires to have ROS Cartographer installed (apt-get install ros-foxy-cartographer*
+
 ![cartographer][image4]
 
 ### T265 tracking and D435 depth cameras simultaneously with rtabmap 3D SLAM
