@@ -79,6 +79,8 @@ public:
     {
       align_depth_publisher_ = image_transport::create_publisher(this, "rs_d435/aligned_depth/image_raw");
       depth_camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/aligned_depth/camera_info", 10);
+      camera_info_publisher_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("rs_d435/image_raw/camera_info", 10);
+
     }
     if (publish_pointcloud_)
       pcl_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("rs_d435/point_cloud", 10);
@@ -87,7 +89,7 @@ public:
 
 
     // Timer
-    timer_ = this->create_wall_timer(10ms, std::bind(&D435Node::TimerCallback, this));
+    timer_ = this->create_wall_timer(1ms, std::bind(&D435Node::TimerCallback, this));
   }
 
 private:
@@ -176,7 +178,7 @@ private:
         }
 
       }
-      // UpdateCalibData(depth_video_profile_.as<rs2::video_stream_profile>());
+      UpdateCalibData(depth_video_profile_.as<rs2::video_stream_profile>());
 
     }
     catch (const std::exception &ex)
@@ -199,6 +201,52 @@ private:
     stream_intrinsics_ = intrinsic;
     if (stream_index == COLOR)
     {
+      camera_info_.width = intrinsic.width;
+      camera_info_.height = intrinsic.height;
+      camera_info_.header.frame_id = "camera_link_d435";
+      camera_info_.k.at(0) = intrinsic.fx;
+      camera_info_.k.at(2) = intrinsic.ppx;
+      camera_info_.k.at(4) = intrinsic.fy;
+      camera_info_.k.at(5) = intrinsic.ppy;
+      camera_info_.k.at(8) = 1;
+      camera_info_.p.at(0) = camera_info_.k.at(0);
+      camera_info_.p.at(1) = 0;
+      camera_info_.p.at(2) = camera_info_.k.at(2);
+      camera_info_.p.at(3) = 0;
+      camera_info_.p.at(4) = 0;
+      camera_info_.p.at(5) = camera_info_.k.at(4);
+      camera_info_.p.at(6) = camera_info_.k.at(5);
+      camera_info_.p.at(7) = 0;
+      camera_info_.p.at(8) = 0;
+      camera_info_.p.at(9) = 0;
+      camera_info_.p.at(10) = 1;
+      camera_info_.p.at(11) = 0;
+
+      // depth2color_extrinsics_ = depth_video_profile_.get_extrinsics_to(video_profile_.as<rs2::video_stream_profile>());
+
+      // set depth to color translation values in Projection matrix (P)
+      // camera_info_depth_.p.at(3) = depth2color_extrinsics_.translation[0];  // Tx
+      // camera_info_depth_.p.at(7) = depth2color_extrinsics_.translation[1];  // Ty
+      // camera_info_depth_.p.at(11) = depth2color_extrinsics_.translation[2]; // Tz
+      camera_info_.distortion_model = "plumb_bob";
+
+      // set R (rotation matrix) values to identity matrix
+      camera_info_.r.at(0) = 1.0;
+      camera_info_.r.at(1) = 0.0;
+      camera_info_.r.at(2) = 0.0;
+      camera_info_.r.at(3) = 0.0;
+      camera_info_.r.at(4) = 1.0;
+      camera_info_.r.at(5) = 0.0;
+      camera_info_.r.at(6) = 0.0;
+      camera_info_.r.at(7) = 0.0;
+      camera_info_.r.at(8) = 1.0;
+
+      for (int i = 0; i < 5; i++)
+      {
+        camera_info_.d.push_back(intrinsic.coeffs[i]);
+      }
+    }
+    else{
       camera_info_depth_.width = intrinsic.width;
       camera_info_depth_.height = intrinsic.height;
       camera_info_depth_.header.frame_id = "camera_link_d435";
@@ -277,8 +325,12 @@ private:
     };
 
     align_depth_publisher_.publish(img);
+    camera_info_.header.stamp = t;
     camera_info_depth_.header.stamp = t;
+
+    camera_info_publisher_->publish(camera_info_);
     depth_camera_info_publisher_->publish(camera_info_depth_);
+
   }
 
   void publishAlignedPCTopic(const rclcpp::Time & t)
@@ -444,6 +496,8 @@ private:
   image_transport::Publisher align_depth_publisher_;
   image_transport::Publisher image_raw_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr depth_camera_info_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_publisher_;
+
 
   // Realsense variables
   rs2::device dev_;
@@ -459,6 +513,8 @@ private:
   cv::Mat image_;
   float depth_scale_meters_ = 1;
   sensor_msgs::msg::CameraInfo camera_info_depth_;
+  sensor_msgs::msg::CameraInfo camera_info_;
+
 
 
   // Parameters
@@ -472,7 +528,7 @@ private:
 
 int main(int argc, char **argv)
 {
-  printf("hello world rs_d435 package\n");
+  printf("starting rs_d435 node\n");
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<D435Node>());
   rclcpp::shutdown();

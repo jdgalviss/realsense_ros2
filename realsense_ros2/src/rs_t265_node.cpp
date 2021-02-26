@@ -144,7 +144,7 @@ private:
 
 int main(int argc, char **argv)
 {
-  printf("hello world rs_t265 package\n");
+  printf("starting rs_t265 node\n");
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<T265Node>());
   rclcpp::shutdown();
