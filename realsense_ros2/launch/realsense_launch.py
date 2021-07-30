@@ -41,5 +41,15 @@ def generate_launch_description():
             node_executable='static_transform_publisher',
             output='screen',
             arguments=['0.0', '0.025', '0.03', '0.0', '0.0', '0.0', 'camera_link_t265', 'camera_link_d435']
-            )
+            ),
+            
+        Node(
+            package='depthimage_to_laserscan',
+            node_executable='depthimage_to_laserscan_node',
+            node_name='scan',
+            output='screen',
+            parameters=[{'output_frame':'camera_link_d435'}],
+            remappings=[('depth','rs_d435/aligned_depth/image_raw'),
+                        ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
+            ),
     ])

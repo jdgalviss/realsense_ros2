@@ -31,13 +31,31 @@ find_package(image_transport REQUIRED)
 
 find_package(Boost COMPONENTS system REQUIRED)
 find_package(PCL COMPONENTS common REQUIRED)
+find_package(PkgConfig)
+pkg_search_module(Eigen3 REQUIRED eigen3)
 
 find_library(realsense2_LIBRARIES realsense2)
 find_path(realsense2_INCLUDE_DIRS librealsense2/rs.hpp)
 
+set(DEPENDENCIES
+  rclcpp
+  geometry_msgs
+  nav_msgs
+  sensor_msgs 
+  tf2_msgs
+  tf2_ros
+  realsense2 
+  pcl_conversions
+  cv_bridge
+  image_transport
+)
+
+
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${realsense2_INCLUDE_DIRS}
+  ${EIGEN_INCLUDE_DIRS}
+
 )
 
 # Install launch files.
@@ -57,15 +75,8 @@ install(DIRECTORY
 
 ## rs_t265_node
 add_executable(rs_t265_node src/rs_t265_node.cpp)
-ament_target_dependencies(rs_t265_node
-  "rclcpp"
-  "geometry_msgs"
-  "nav_msgs"
-  "sensor_msgs" 
-  "tf2_msgs"
-  "tf2_ros"
-  "realsense2" 
-)
+ament_target_dependencies(rs_t265_node ${DEPENDENCIES})
+
 target_include_directories(rs_t265_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
@@ -78,17 +89,7 @@ add_executable(rs_d435_node
   include/${PROJECT_NAME}/constants.hpp
   src/rs_d435_node.cpp)
 
-ament_target_dependencies(rs_d435_node
-  "rclcpp"
-  "geometry_msgs"
-  "nav_msgs"
-  "realsense2" 
-  "sensor_msgs" 
-  "pcl_conversions"
-  "cv_bridge"
-  "image_transport"
-  "tf2_ros"
-)
+ament_target_dependencies(rs_d435_node ${DEPENDENCIES})
 
 target_link_libraries(rs_d435_node
   ${Boost_SYSTEM_LIBRARY}  # pcl_conversions requires this

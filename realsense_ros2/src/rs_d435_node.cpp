@@ -28,6 +28,7 @@
 #include <chrono>
 #include <map>
 #include <tf2_ros/transform_listener.h>
+#include "tf2_sensor_msgs/tf2_sensor_msgs.h"
 
 #define IMAGE_FORMAT_DEPTH CV_16UC1 // CVBridge type
 #define DEPTH_WIDTH 640
