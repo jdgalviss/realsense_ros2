@@ -321,7 +321,7 @@ private:
     img->step = width * bpp;
     img->header.frame_id = "camera_link_d435";
     // Wait for transform to be available begfore publishing
-    while (!tf_buffer_.canTransform("odom", "camera_link_t265", tf2::TimePointZero, 10s))
+    while (!tf_buffer_.canTransform("odom", "base_link", tf2::TimePointZero, 10s))
     {
     };
 

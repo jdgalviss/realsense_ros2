@@ -19,11 +19,13 @@
 #include <iostream>
 #include <iomanip>
 #include <chrono>
+#include <cmath>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/transform_datatypes.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2/convert.h>
 #include "tf2_sensor_msgs/tf2_sensor_msgs.h"
+#include <tf2/convert.h>
 
 using namespace std::chrono_literals;
 
@@ -74,7 +76,7 @@ private:
     {
       rs2_vector accel_sample = accel_frame.get_motion_data();
       imu_msg_.header.stamp = rclcpp::Clock().now();
-      imu_msg_.header.frame_id = "camera_link_t265";
+      imu_msg_.header.frame_id = "base_link";
       imu_msg_.linear_acceleration.x = accel_sample.x;
       imu_msg_.linear_acceleration.y = accel_sample.y;
       imu_msg_.linear_acceleration.z = accel_sample.z;
@@ -89,7 +91,7 @@ private:
       // Create odometry msg and publish
       auto odom_msg = nav_msgs::msg::Odometry();
       odom_msg.header.frame_id = "odom";
-      odom_msg.child_frame_id = "camera_link_t265";
+      odom_msg.child_frame_id = "base_link";
       odom_msg.header.stamp = rclcpp::Clock().now();
       odom_msg.pose.pose.position.x = -pose_data.translation.z;
       odom_msg.pose.pose.position.y = -pose_data.translation.x;
@@ -100,8 +102,15 @@ private:
       odom_msg.pose.pose.orientation.z = pose_data.rotation.y;
       odom_msg.pose.pose.orientation.w = pose_data.rotation.w;
 
-      odom_msg.twist.twist.linear.x = -pose_data.velocity.z;
-      odom_msg.twist.twist.linear.y = -pose_data.velocity.x;
+      double r = 0.0f, p = 0.0f, y = 0.0f;
+      tf2::Quaternion q(odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w);
+      tf2::Matrix3x3 m(q);
+      m.getRPY(r, p, y);
+
+      double vel_x = -pose_data.velocity.z;
+      double vel_y = -pose_data.velocity.x;
+      odom_msg.twist.twist.linear.x = vel_x*cos(y) + vel_y*sin(y);
+      odom_msg.twist.twist.linear.y = -vel_x*sin(y) + vel_y*cos(y);
       odom_msg.twist.twist.linear.z = pose_data.velocity.y;
 
       odom_msg.twist.twist.angular.x = -pose_data.angular_velocity.z;
@@ -114,7 +123,7 @@ private:
       geometry_msgs::msg::TransformStamped tf;
       
       tf.header.frame_id = "odom";
-      tf.child_frame_id = "camera_link_t265";
+      tf.child_frame_id = "base_link";
       tf.transform.translation.x = -pose_data.translation.z;
       tf.transform.translation.y = -pose_data.translation.x;
       tf.transform.translation.z = pose_data.translation.y;
