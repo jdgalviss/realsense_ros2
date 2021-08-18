@@ -462,7 +462,8 @@ private:
     // Wait for most recent frame
     auto frames = pipe_.wait_for_frames();
     auto time_stamp = rclcpp::Clock().now();
-    if (is_color_ || publish_image_raw_){
+    
+    if (is_color_ && publish_pointcloud_){ //  This should be false so that slam_toolbox works
       rs2::align align(RS2_STREAM_COLOR);
       aligned_frameset_ = frames.apply_filter(align);
     }

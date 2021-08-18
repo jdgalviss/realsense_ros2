@@ -24,17 +24,17 @@ def generate_launch_description():
                 {"publish_pointcloud": False},
                 {"is_color": False},
                 {"publish_image_raw_": True},
-                {"fps": 30}      # Can only take values of 6,15,30 or 60
+                {"fps": 6}      # Can only take values of 6,15,30 or 60
             ]
         ),
 
-        # Node(
-        #     ## Configure the TF of the robot to the origin of the map coordinates
-        #     package='tf2_ros',
-        #     node_executable='static_transform_publisher',
-        #     output='screen',
-        #     arguments=['-0.15', '0.0', '0.0', '0.0', '0.0', '0.0', 'camera_link_t265', 'base_link']
-        # ),
+        Node(
+            ## Configure the TF of the robot to the origin of the map coordinates
+            package='tf2_ros',
+            node_executable='static_transform_publisher',
+            output='screen',
+            arguments=['0.0', '0.0', '0.0', '0.0', '0.0', '0.0', 't265_frame', 'base_link']
+        ),
         Node(
             ## Configure the TF of the robot to the origin of the map coordinates
             package='tf2_ros',

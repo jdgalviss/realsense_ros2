@@ -49,7 +49,7 @@ public:
     imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("rs_t265/imu", 10);
     // Timer used to publish camera's odometry periodically
     timer_ = this->create_wall_timer(
-        10ms, std::bind(&T265Node::TimerCallback, this));
+        30ms, std::bind(&T265Node::TimerCallback, this));
   }
 
 private:
@@ -76,7 +76,7 @@ private:
     {
       rs2_vector accel_sample = accel_frame.get_motion_data();
       imu_msg_.header.stamp = rclcpp::Clock().now();
-      imu_msg_.header.frame_id = "base_link";
+      imu_msg_.header.frame_id = "t265_frame";
       imu_msg_.linear_acceleration.x = accel_sample.x;
       imu_msg_.linear_acceleration.y = accel_sample.y;
       imu_msg_.linear_acceleration.z = accel_sample.z;
@@ -91,7 +91,7 @@ private:
       // Create odometry msg and publish
       auto odom_msg = nav_msgs::msg::Odometry();
       odom_msg.header.frame_id = "odom";
-      odom_msg.child_frame_id = "base_link";
+      odom_msg.child_frame_id = "t265_frame";
       odom_msg.header.stamp = rclcpp::Clock().now();
       odom_msg.pose.pose.position.x = -pose_data.translation.z;
       odom_msg.pose.pose.position.y = -pose_data.translation.x;
@@ -123,7 +123,7 @@ private:
       geometry_msgs::msg::TransformStamped tf;
       
       tf.header.frame_id = "odom";
-      tf.child_frame_id = "base_link";
+      tf.child_frame_id = "t265_frame";
       tf.transform.translation.x = -pose_data.translation.z;
       tf.transform.translation.y = -pose_data.translation.x;
       tf.transform.translation.z = pose_data.translation.y;
