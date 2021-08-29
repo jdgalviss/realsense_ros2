@@ -21,10 +21,10 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 {"publish_depth": True},
-                {"publish_pointcloud": True},
-                {"is_color": True},
+                {"publish_pointcloud": False},
+                {"is_color": False},
                 {"publish_image_raw_": True},
-                {"fps": 30}      # Can only take values of 6,15,30 or 60
+                {"fps": 6}      # Can only take values of 6,15,30 or 60
             ]
         ),
 

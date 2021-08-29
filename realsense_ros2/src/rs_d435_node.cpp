@@ -321,9 +321,9 @@ private:
     img->step = width * bpp;
     img->header.frame_id = "camera_link_d435";
     // Wait for transform to be available begfore publishing
-    while (!tf_buffer_.canTransform("odom", "base_link", tf2::TimePointZero, 10s))
-    {
-    };
+    // while (!tf_buffer_.canTransform("odom", "base_link", tf2::TimePointZero, 10s))
+    // {
+    // };
 
     align_depth_publisher_.publish(img);
     camera_info_.header.stamp = t;
@@ -372,7 +372,7 @@ private:
     // Create pointcloud msg
     sensor_msgs::msg::PointCloud2 msg_pointcloud;
     msg_pointcloud.header.stamp = t;
-    msg_pointcloud.header.frame_id = "camera_link_d435";
+    msg_pointcloud.header.frame_id = "camera_link_d435_pcl";
     msg_pointcloud.width = depth_intrinsics.width;
     msg_pointcloud.height = depth_intrinsics.height;
     msg_pointcloud.is_dense = true;

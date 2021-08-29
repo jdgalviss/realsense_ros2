@@ -49,7 +49,7 @@ public:
     imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>("rs_t265/imu", 10);
     // Timer used to publish camera's odometry periodically
     timer_ = this->create_wall_timer(
-        30ms, std::bind(&T265Node::TimerCallback, this));
+        10ms, std::bind(&T265Node::TimerCallback, this)); //30ms
   }
 
 private:
