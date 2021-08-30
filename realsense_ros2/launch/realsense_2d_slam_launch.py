@@ -60,4 +60,5 @@ def generate_launch_description():
             remappings=[('depth','rs_d435/aligned_depth/image_raw'),
                         ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
             ),
+
     ])

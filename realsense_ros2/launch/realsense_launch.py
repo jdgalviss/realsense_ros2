@@ -51,13 +51,13 @@ def generate_launch_description():
 
             ),
             
-        Node(
-            package='depthimage_to_laserscan',
-            node_executable='depthimage_to_laserscan_node',
-            node_name='scan',
-            output='screen',
-            parameters=[{'output_frame':'camera_link_d435'}],
-            remappings=[('depth','rs_d435/aligned_depth/image_raw'),
-                        ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
-            ),
+        # Node(
+        #     package='depthimage_to_laserscan',
+        #     node_executable='depthimage_to_laserscan_node',
+        #     node_name='scan',
+        #     output='screen',
+        #     parameters=[{'output_frame':'camera_link_d435'}],
+        #     remappings=[('depth','rs_d435/aligned_depth/image_raw'),
+        #                 ('depth_camera_info', 'rs_d435/aligned_depth/camera_info')],
+        #     ),
     ])
