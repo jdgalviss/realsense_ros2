@@ -85,13 +85,17 @@ ros2 launch realsense_ros2 realsense_launch.py
 ```
 ![rviz][image2]
 
-### T265 tracking and D435 depth cameras simultaneously with ros cartographer 2D SLAM
-In one terminal, launch the 2 cameras and ros cartographer:
+### T265 tracking and D435 depth cameras simultaneously with slam toolbox 2D SLAM
+* For 2D-SLAM, in another terminal:
+ ```bash
+ ros2 launch realsense_ros2 realsense_launch.py
+ ```
+In another terminal:
 ```bash
-ros2 launch realsense_ros2 slam_cartographer_launch.py
-```
+ros2 launch slam_toolbox online_async_launch.py
+``
 
-This requires to have ROS Cartographer installed (apt-get install ros-foxy-cartographer*
+This requires to have SLAM-TOOLBOX installed (apt-get install ros-<distro>-slam-toolbox
 
 ![cartographer][image4]
 
